@@ -15,15 +15,17 @@ use crate::{
     kubectl::namespace,
 };
 
-#[derive(Default)]
 enum ActiveWindow {
-    #[default]
-    Main,
+    Main(MainWindow),
     RecentNamespaces,
     RecentPortForwarding,
 }
 
-#[derive(Default)]
+enum MainWindow {
+    Namespaces,
+    Pods,
+}
+
 pub struct App {
     namespaces: NamespacesList,
     side_bar: SideBar,
@@ -64,12 +66,25 @@ impl App {
         Ok(())
     }
 
-    fn handle_key_event(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char('q') => self.exit = true,
-            KeyCode::Char('j') | KeyCode::Down => self.namespaces.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.namespaces.select_prev(),
-            _ => {}
-        };
+    fn handle_key_event(&mut self, key: KeyEvent) {
+        match &self.active_window {
+            ActiveWindow::Main(main) => match main {
+                MainWindow::Namespaces => self.exit = self.namespaces.handle_key_event(key),
+                MainWindow::Pods => {}
+            },
+            ActiveWindow::RecentNamespaces => {}
+            ActiveWindow::RecentPortForwarding => {}
+        }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            active_window: ActiveWindow::Main(MainWindow::Namespaces),
+            namespaces: NamespacesList::default(),
+            side_bar: SideBar::default(),
+            exit: false,
+        }
     }
 }
