@@ -6,7 +6,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("failed to load namespaces")]
-    FailLoadNamespaces(Error),
+    FailedRunKubeCtlCommand(Error),
 
     #[error("error from terminal")]
     TerminalError(#[from] io::Error),

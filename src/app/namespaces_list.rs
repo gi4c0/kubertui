@@ -1,17 +1,29 @@
 use ratatui::{
     Frame,
+    layout::Rect,
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
 };
 
-#[derive(Default)]
 pub struct NamespacesList {
     list: Vec<String>,
     state: ListState,
 }
 
+impl Default for NamespacesList {
+    fn default() -> Self {
+        let mut state = ListState::default();
+        state.select(Some(0));
+
+        Self {
+            list: vec![],
+            state,
+        }
+    }
+}
+
 impl NamespacesList {
-    pub fn draw(&mut self, frame: &mut Frame) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         let namespaces_list_items: Vec<ListItem> = self
             .list
             .iter()
@@ -22,16 +34,17 @@ impl NamespacesList {
             .block(
                 Block::default()
                     .title("Select Namespace")
-                    .borders(Borders::ALL),
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded),
             )
             .highlight_style(
                 Style::default()
-                    .bg(Color::Yellow)
+                    .bg(Color::Cyan)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             );
 
-        frame.render_stateful_widget(list, frame.area(), &mut self.state);
+        frame.render_stateful_widget(list, area, &mut self.state);
     }
 
     pub fn update_list(&mut self, new_list: Vec<String>) {

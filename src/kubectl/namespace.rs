@@ -1,8 +1,6 @@
-use anyhow::Context;
 use serde::Deserialize;
-use tokio::process::Command;
 
-use crate::error::AppError;
+use crate::{error::AppError, kubectl::run_kubectl_command};
 
 #[derive(Deserialize)]
 struct Response {
@@ -20,23 +18,8 @@ struct Metadata {
 }
 
 pub async fn get_namespaces() -> Result<Vec<String>, AppError> {
-    let output = Command::new("kubectl")
-        .args(["get", "namespaces", "-o", "json"])
-        .output()
-        .await
-        .context("Failed to run command 'kubectl get namespaces'")
-        .map_err(AppError::FailLoadNamespaces)?;
-
-    if !output.status.success() {
-        return Err(AppError::FailLoadNamespaces(anyhow::anyhow!(
-            "Got error from command: 'kubectl get namespaces'\nstderr: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )));
-    }
-
-    let parsed: Response = serde_json::from_slice(&output.stdout)
-        .context("Invalid JSON")
-        .map_err(AppError::FailLoadNamespaces)?;
+    let parsed: Response =
+        run_kubectl_command("kubectl", vec!["get", "namespaces", "-o", "json"]).await?;
 
     Ok(parsed
         .items

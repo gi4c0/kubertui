@@ -1,18 +1,34 @@
-pub mod namespaces_list;
+mod namespaces_list;
+mod side_bar;
 
 use std::io;
 
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    layout::{Constraint, Direction, Layout},
 };
 
-use crate::{app::namespaces_list::NamespacesList, error::AppResult, kubectl::namespace};
+use crate::{
+    app::{namespaces_list::NamespacesList, side_bar::SideBar},
+    error::AppResult,
+    kubectl::namespace,
+};
+
+#[derive(Default)]
+enum ActiveWindow {
+    #[default]
+    Main,
+    RecentNamespaces,
+    RecentPortForwarding,
+}
 
 #[derive(Default)]
 pub struct App {
     namespaces: NamespacesList,
+    side_bar: SideBar,
     exit: bool,
+    active_window: ActiveWindow,
 }
 
 impl App {
@@ -28,7 +44,13 @@ impl App {
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        self.namespaces.draw(frame);
+        let layouts = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(25), Constraint::Percentage(75)])
+            .split(frame.area());
+
+        self.side_bar.draw(layouts[0], frame);
+        self.namespaces.draw(layouts[1], frame);
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
