@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 pub struct NamespacesList {
-    list: Vec<String>,
+    original_list: Vec<String>,
     filtered_list: Vec<String>,
     state: ListState,
     filter: String,
@@ -20,7 +20,7 @@ impl Default for NamespacesList {
         state.select(Some(0));
 
         Self {
-            list: vec![],
+            original_list: vec![],
             filtered_list: vec![],
             state,
             filter: String::new(),
@@ -29,10 +29,16 @@ impl Default for NamespacesList {
     }
 }
 
+#[derive(Default)]
+pub struct NamespaceResponse {
+    pub is_exit: bool,
+    pub selected: Option<String>,
+}
+
 impl NamespacesList {
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         self.filtered_list = self
-            .list
+            .original_list
             .iter()
             .filter(|item| {
                 if self.filter.is_empty() {
@@ -85,10 +91,10 @@ impl NamespacesList {
     }
 
     pub fn update_list(&mut self, new_list: Vec<String>) {
-        self.list = new_list;
+        self.original_list = new_list;
     }
 
-    pub fn select_next(&mut self) {
+    fn select_next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == self.filtered_list.len() - 1 {
@@ -103,7 +109,7 @@ impl NamespacesList {
         self.state.select(Some(i));
     }
 
-    pub fn select_prev(&mut self) {
+    fn select_prev(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -118,7 +124,7 @@ impl NamespacesList {
         self.state.select(Some(i));
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> NamespaceResponse {
         if self.is_filter_mod && key.kind == KeyEventKind::Press {
             match key.code {
                 KeyCode::Enter => {
@@ -136,19 +142,33 @@ impl NamespacesList {
                 }
                 _ => {}
             }
-            return false;
+            return NamespaceResponse::default();
         }
 
         match key.code {
-            KeyCode::Char('q') => return true,
+            KeyCode::Char('q') => {
+                return NamespaceResponse {
+                    selected: None,
+                    is_exit: true,
+                };
+            }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('/') => {
                 self.is_filter_mod = true;
             }
+            KeyCode::Enter => {
+                return NamespaceResponse {
+                    is_exit: false,
+                    selected: self
+                        .filtered_list
+                        .get(self.state.selected().unwrap_or(0))
+                        .cloned(),
+                };
+            }
             _ => {}
         };
 
-        false
+        NamespaceResponse::default()
     }
 }

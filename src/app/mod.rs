@@ -5,7 +5,7 @@ use std::io;
 
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    crossterm::event::{self, Event, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout},
 };
 
@@ -69,7 +69,15 @@ impl App {
     fn handle_key_event(&mut self, key: KeyEvent) {
         match &self.active_window {
             ActiveWindow::Main(main) => match main {
-                MainWindow::Namespaces => self.exit = self.namespaces.handle_key_event(key),
+                MainWindow::Namespaces => {
+                    let response = self.namespaces.handle_key_event(key);
+                    self.exit = response.is_exit;
+
+                    if let Some(selected) = response.selected {
+                        self.side_bar.recent_namespaces.add_to_list(selected);
+                        // self.active_window = ActiveWindow::RecentNamespaces
+                    }
+                }
                 MainWindow::Pods => {}
             },
             ActiveWindow::RecentNamespaces => {}
