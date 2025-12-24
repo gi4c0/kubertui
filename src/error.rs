@@ -10,6 +10,9 @@ pub enum AppError {
 
     #[error("error from terminal")]
     TerminalError(#[from] io::Error),
+
+    #[error(transparent)]
+    GeneralError(#[from] Error),
 }
 
 pub type AppResult<T> = Result<T, AppError>;

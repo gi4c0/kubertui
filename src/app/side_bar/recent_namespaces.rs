@@ -6,19 +6,26 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListItem, ListState},
 };
 
-#[derive(Default)]
+use crate::app::{
+    FOCUS_COLOR,
+    events::{AppEvent, EventSender},
+};
+
 pub struct RecentNamespacesList {
     state: ListState,
     list: Vec<String>,
-}
-
-#[derive(Default)]
-pub struct RecentNamespaceResponse {
-    pub is_exit: bool,
-    pub selected: Option<String>,
+    event_sender: EventSender,
 }
 
 impl RecentNamespacesList {
+    pub fn new(event_sender: EventSender) -> Self {
+        Self {
+            event_sender,
+            state: ListState::default(),
+            list: Vec::new(),
+        }
+    }
+
     pub fn add_to_list(&mut self, new_namespace: String) {
         if let Some(index) = self.list.iter().position(|item| item == &new_namespace) {
             self.list.remove(index);
@@ -43,7 +50,7 @@ impl RecentNamespacesList {
             )
             .highlight_style(
                 Style::default()
-                    .bg(Color::Cyan)
+                    .bg(FOCUS_COLOR)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             );
@@ -81,25 +88,19 @@ impl RecentNamespacesList {
         self.state.select(Some(i));
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> RecentNamespaceResponse {
+    pub fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('q') => {
-                return RecentNamespaceResponse {
-                    selected: None,
-                    is_exit: true,
-                };
+                let _ = self.event_sender.send(AppEvent::Quit);
             }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Enter => {
-                return RecentNamespaceResponse {
-                    is_exit: false,
-                    selected: self.list.get(self.state.selected().unwrap_or(0)).cloned(),
-                };
+                let _ = self.event_sender.send(AppEvent::SelectNamespace(
+                    self.list[self.state.selected().unwrap_or(0)].clone(),
+                ));
             }
             _ => {}
         };
-
-        RecentNamespaceResponse::default()
     }
 }

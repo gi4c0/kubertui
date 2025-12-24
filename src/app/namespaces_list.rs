@@ -1,3 +1,7 @@
+use crate::app::{
+    FOCUS_COLOR,
+    events::{AppEvent, EventSender},
+};
 use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
@@ -12,10 +16,11 @@ pub struct NamespacesList {
     state: ListState,
     filter: String,
     is_filter_mod: bool,
+    event_sender: EventSender,
 }
 
-impl Default for NamespacesList {
-    fn default() -> Self {
+impl NamespacesList {
+    pub fn new(event_sender: EventSender) -> Self {
         let mut state = ListState::default();
         state.select(Some(0));
 
@@ -25,17 +30,10 @@ impl Default for NamespacesList {
             state,
             filter: String::new(),
             is_filter_mod: false,
+            event_sender,
         }
     }
-}
 
-#[derive(Default)]
-pub struct NamespaceResponse {
-    pub is_exit: bool,
-    pub selected: Option<String>,
-}
-
-impl NamespacesList {
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         self.filtered_list = self
             .original_list
@@ -65,7 +63,7 @@ impl NamespacesList {
             )
             .highlight_style(
                 Style::default()
-                    .bg(Color::Cyan)
+                    .bg(FOCUS_COLOR)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             );
@@ -76,12 +74,16 @@ impl NamespacesList {
                 .constraints(vec![Constraint::Length(3), Constraint::Min(1)])
                 .split(area);
 
-            let filter_widget = Paragraph::new(self.filter.as_str()).block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Filter")
-                    .border_type(BorderType::Rounded),
-            );
+            let mut block = Block::default()
+                .borders(Borders::ALL)
+                .title("Filter")
+                .border_type(BorderType::Rounded);
+
+            if self.is_filter_mod {
+                block = block.border_style(FOCUS_COLOR);
+            }
+
+            let filter_widget = Paragraph::new(self.filter.as_str()).block(block);
 
             frame.render_widget(filter_widget, layouts[0]);
             frame.render_stateful_widget(list, layouts[1], &mut self.state);
@@ -124,11 +126,12 @@ impl NamespacesList {
         self.state.select(Some(i));
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> NamespaceResponse {
+    pub fn handle_key_event(&mut self, key: KeyEvent) {
         if self.is_filter_mod && key.kind == KeyEventKind::Press {
             match key.code {
                 KeyCode::Enter => {
                     self.is_filter_mod = false;
+                    self.state.select(Some(0));
                 }
                 KeyCode::Esc => {
                     self.filter.clear();
@@ -141,16 +144,14 @@ impl NamespacesList {
                     self.filter.push(ch);
                 }
                 _ => {}
-            }
-            return NamespaceResponse::default();
+            };
+
+            return;
         }
 
         match key.code {
             KeyCode::Char('q') => {
-                return NamespaceResponse {
-                    selected: None,
-                    is_exit: true,
-                };
+                let _ = self.event_sender.send(AppEvent::Quit);
             }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
@@ -158,17 +159,11 @@ impl NamespacesList {
                 self.is_filter_mod = true;
             }
             KeyCode::Enter => {
-                return NamespaceResponse {
-                    is_exit: false,
-                    selected: self
-                        .filtered_list
-                        .get(self.state.selected().unwrap_or(0))
-                        .cloned(),
-                };
+                let _ = self.event_sender.send(AppEvent::SelectNamespace(
+                    self.filtered_list[self.state.selected().unwrap_or(0)].clone(),
+                ));
             }
             _ => {}
         };
-
-        NamespaceResponse::default()
     }
 }

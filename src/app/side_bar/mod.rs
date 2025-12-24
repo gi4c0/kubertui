@@ -6,11 +6,18 @@ use ratatui::{
     widgets::{Block, BorderType, Borders},
 };
 
-use crate::app::side_bar::recent_namespaces::RecentNamespacesList;
+use crate::app::{events::EventSender, side_bar::recent_namespaces::RecentNamespacesList};
 
-#[derive(Default)]
 pub struct SideBar {
     pub recent_namespaces: RecentNamespacesList,
+}
+
+impl SideBar {
+    pub fn new(event_sender: EventSender) -> Self {
+        Self {
+            recent_namespaces: RecentNamespacesList::new(event_sender),
+        }
+    }
 }
 
 impl SideBar {

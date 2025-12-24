@@ -1,19 +1,26 @@
+mod events;
 mod namespaces_list;
 mod side_bar;
 
-use std::io;
-
+use anyhow::Context;
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, Event, KeyEvent, KeyEventKind},
+    crossterm::event::{Event, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout},
+    style::Color,
 };
 
 use crate::{
-    app::{namespaces_list::NamespacesList, side_bar::SideBar},
+    app::{
+        events::{AppEvent, EventHandler},
+        namespaces_list::NamespacesList,
+        side_bar::SideBar,
+    },
     error::AppResult,
     kubectl::namespace,
 };
+
+pub const FOCUS_COLOR: Color = Color::Cyan;
 
 enum ActiveWindow {
     Main(MainWindow),
@@ -31,17 +38,21 @@ pub struct App {
     side_bar: SideBar,
     exit: bool,
     active_window: ActiveWindow,
+    event_handler: EventHandler,
 }
 
 impl App {
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
-        let namespaces = namespace::get_namespaces().await.unwrap();
+        let namespaces = namespace::get_namespaces()
+            .await
+            .context("Failed to download context")?;
         self.namespaces.update_list(namespaces);
 
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
+            self.handle_events().await?;
         }
+
         Ok(())
     }
 
@@ -55,13 +66,19 @@ impl App {
         self.namespaces.draw(layouts[1], frame);
     }
 
-    fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event)
+    async fn handle_events(&mut self) -> AppResult<()> {
+        match self.event_handler.next().await? {
+            AppEvent::Crossterm(crossterm_event) => match crossterm_event {
+                Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                    self.handle_key_event(key_event)
+                }
+                _ => {}
+            },
+            AppEvent::Quit => self.exit = true,
+            AppEvent::SelectNamespace(new_namespace) => {
+                self.side_bar.recent_namespaces.add_to_list(new_namespace);
             }
-            _ => {}
-        };
+        }
 
         Ok(())
     }
@@ -69,15 +86,7 @@ impl App {
     fn handle_key_event(&mut self, key: KeyEvent) {
         match &self.active_window {
             ActiveWindow::Main(main) => match main {
-                MainWindow::Namespaces => {
-                    let response = self.namespaces.handle_key_event(key);
-                    self.exit = response.is_exit;
-
-                    if let Some(selected) = response.selected {
-                        self.side_bar.recent_namespaces.add_to_list(selected);
-                        // self.active_window = ActiveWindow::RecentNamespaces
-                    }
-                }
+                MainWindow::Namespaces => self.namespaces.handle_key_event(key),
                 MainWindow::Pods => {}
             },
             ActiveWindow::RecentNamespaces => {}
@@ -88,11 +97,14 @@ impl App {
 
 impl Default for App {
     fn default() -> Self {
+        let event_handler = EventHandler::new();
+
         Self {
             active_window: ActiveWindow::Main(MainWindow::Namespaces),
-            namespaces: NamespacesList::default(),
-            side_bar: SideBar::default(),
+            namespaces: NamespacesList::new(event_handler.sender()),
+            side_bar: SideBar::new(event_handler.sender()),
             exit: false,
+            event_handler,
         }
     }
 }
