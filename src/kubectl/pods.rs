@@ -2,21 +2,25 @@ use serde::Deserialize;
 
 use crate::{error::AppResult, kubectl::run_kubectl_command};
 
+#[derive(Clone)]
 pub struct Pod {
     pub name: String,
-    pub status: Vec<PodStatus>,
+    pub container_statuses: Vec<PodStatus>,
 }
 
-pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
-    let parsed: ApiResponse =
-        run_kubectl_command("kubectl", vec!["get", "namespaces", "-o", "json"]).await?;
+pub async fn get_pods_list(namespace: String) -> AppResult<Vec<Pod>> {
+    let parsed: ApiResponse = run_kubectl_command(
+        "kubectl",
+        vec!["get", "pods", "-n", namespace.as_str(), "-o", "json"],
+    )
+    .await?;
 
     Ok(parsed
         .items
         .into_iter()
         .map(|item| Pod {
             name: item.metadata.name,
-            status: item
+            container_statuses: item
                 .status
                 .container_statuses
                 .into_iter()
@@ -53,15 +57,15 @@ struct ContainerStatus {
     state: PodStatus,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub enum PodStatus {
     Known(KnownPodStatus),
     Unknown(serde_json::Value),
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub enum KnownPodStatus {
     #[serde(rename_all = "camelCase")]
     Terminated {
@@ -71,6 +75,7 @@ pub enum KnownPodStatus {
         reason: String,
         started_at: String,
     },
+    #[serde(rename_all = "camelCase")]
     Waiting {
         reason: String,
         message: Option<String>,

@@ -1,5 +1,6 @@
 mod events;
 mod namespaces_list;
+mod pods_list;
 mod side_bar;
 
 use anyhow::Context;
@@ -14,6 +15,7 @@ use crate::{
     app::{
         events::{AppEvent, EventHandler},
         namespaces_list::NamespacesList,
+        pods_list::PodsList,
         side_bar::SideBar,
     },
     error::AppResult,
@@ -35,8 +37,10 @@ enum MainWindow {
 
 pub struct App {
     namespaces: NamespacesList,
+    pods: Option<PodsList>,
     side_bar: SideBar,
     exit: bool,
+    main_window: MainWindow,
     active_window: ActiveWindow,
     event_handler: EventHandler,
 }
@@ -63,7 +67,14 @@ impl App {
             .split(frame.area());
 
         self.side_bar.draw(layouts[0], frame);
-        self.namespaces.draw(layouts[1], frame);
+
+        match self.main_window {
+            MainWindow::Namespaces => self.namespaces.draw(layouts[1], frame),
+            MainWindow::Pods => match &mut self.pods {
+                Some(pods_list) => pods_list.draw(layouts[1], frame),
+                None => self.main_window = MainWindow::Namespaces,
+            },
+        };
     }
 
     async fn handle_events(&mut self) -> AppResult<()> {
@@ -76,7 +87,13 @@ impl App {
             },
             AppEvent::Quit => self.exit = true,
             AppEvent::SelectNamespace(new_namespace) => {
-                self.side_bar.recent_namespaces.add_to_list(new_namespace);
+                self.side_bar
+                    .recent_namespaces
+                    .add_to_list(new_namespace.clone());
+
+                self.pods = Some(PodsList::new(self.event_handler.sender(), new_namespace).await?);
+                self.active_window = ActiveWindow::Main(MainWindow::Pods);
+                self.main_window = MainWindow::Pods;
             }
         }
 
@@ -87,7 +104,11 @@ impl App {
         match &self.active_window {
             ActiveWindow::Main(main) => match main {
                 MainWindow::Namespaces => self.namespaces.handle_key_event(key),
-                MainWindow::Pods => {}
+                MainWindow::Pods => {
+                    if let Some(pods) = &mut self.pods {
+                        pods.handle_key_event(key)
+                    }
+                }
             },
             ActiveWindow::RecentNamespaces => {}
             ActiveWindow::RecentPortForwarding => {}
@@ -100,11 +121,13 @@ impl Default for App {
         let event_handler = EventHandler::new();
 
         Self {
+            main_window: MainWindow::Namespaces,
             active_window: ActiveWindow::Main(MainWindow::Namespaces),
             namespaces: NamespacesList::new(event_handler.sender()),
             side_bar: SideBar::new(event_handler.sender()),
             exit: false,
             event_handler,
+            pods: None,
         }
     }
 }
