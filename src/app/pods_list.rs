@@ -1,3 +1,5 @@
+use std::os::macos::raw::stat;
+
 use crossterm::event::{KeyCode, KeyEventKind};
 
 use ratatui::{
@@ -194,29 +196,43 @@ impl PodsList {
 }
 
 fn get_status(statuses: &[PodStatus]) -> Cell<'_> {
-    let statuses: Vec<String> = statuses
-        .iter()
-        .map(|status| match status {
-            PodStatus::Unknown(status) => {
-                println!("{}", status);
-                "❓".into()
-            }
-            PodStatus::Known(known_status) => match known_status {
-                KnownPodStatus::Running { started_at: _ } => "💚".into(),
-                KnownPodStatus::Terminated {
-                    container_id: _,
-                    exit_code: _,
-                    finished_at: _,
-                    reason: _,
-                    started_at: _,
-                } => "💔".into(),
-                KnownPodStatus::Waiting {
-                    reason: _,
-                    message: _,
-                } => "💤".into(),
-            },
-        })
-        .collect();
+    if statuses.len() <= 5 {
+        let statuses: Vec<String> = statuses
+            .iter()
+            .map(|status| match status {
+                PodStatus::Unknown(status) => {
+                    println!("{}", status);
+                    "❓".into()
+                }
+                PodStatus::Known(known_status) => match known_status {
+                    KnownPodStatus::Running { started_at: _ } => "💚".into(),
+                    KnownPodStatus::Terminated {
+                        container_id: _,
+                        exit_code: _,
+                        finished_at: _,
+                        reason: _,
+                        started_at: _,
+                    } => "💔".into(),
+                    KnownPodStatus::Waiting {
+                        reason: _,
+                        message: _,
+                    } => "💤".into(),
+                },
+            })
+            .collect();
 
-    Cell::from(statuses.join(" "))
+        return Cell::from(statuses.join(" "));
+    }
+
+    let running = statuses
+        .iter()
+        .filter(|status| {
+            matches!(
+                status,
+                PodStatus::Known(KnownPodStatus::Running { started_at: _ })
+            )
+        })
+        .count();
+
+    Cell::from(format!("{}/{}", running, statuses.len()))
 }
