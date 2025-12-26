@@ -7,7 +7,7 @@ use anyhow::Context;
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{Event, KeyEvent, KeyEventKind},
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::Color,
 };
 
@@ -95,6 +95,13 @@ impl App {
                 self.active_window = ActiveWindow::Main(MainWindow::Pods);
                 self.main_window = MainWindow::Pods;
             }
+            AppEvent::PortForward {
+                pod_name,
+                local_port,
+                app_port,
+            } => {
+                println!("{pod_name}:{app_port}");
+            }
         }
 
         Ok(())
@@ -130,4 +137,24 @@ impl Default for App {
             pods: None,
         }
     }
+}
+
+fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Length((area.width - width) / 2),
+            Constraint::Length(width),
+            Constraint::Length((area.width - width) / 2),
+        ])
+        .split(area);
+
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length((area.height - height) / 2),
+            Constraint::Length(height),
+            Constraint::Length((area.height - height) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }

@@ -6,6 +6,14 @@ use crate::{error::AppResult, kubectl::run_kubectl_command};
 pub struct Pod {
     pub name: String,
     pub container_statuses: Vec<PodStatus>,
+    pub containers: Vec<PodContainer>,
+}
+
+#[derive(Clone)]
+pub struct PodContainer {
+    pub name: String,
+    // TODO: There might be multiple ports.
+    pub port: u16,
 }
 
 pub async fn get_pods_list(namespace: String) -> AppResult<Vec<Pod>> {
@@ -26,6 +34,19 @@ pub async fn get_pods_list(namespace: String) -> AppResult<Vec<Pod>> {
                 .into_iter()
                 .map(|item| item.state)
                 .collect(),
+            containers: item
+                .spec
+                .containers
+                .into_iter()
+                .map(|item| PodContainer {
+                    name: item.name,
+                    port: item
+                        .ports
+                        .first()
+                        .map(|port| port.container_port)
+                        .unwrap_or(0),
+                })
+                .collect(),
         })
         .collect())
 }
@@ -39,6 +60,26 @@ struct ApiResponse {
 struct Item {
     metadata: Metadata,
     status: Status,
+    spec: Spec,
+}
+
+#[derive(Deserialize)]
+struct Spec {
+    containers: Vec<Container>,
+}
+
+#[derive(Deserialize)]
+struct Container {
+    name: String,
+    ports: Vec<ContainerPort>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ContainerPort {
+    container_port: u16,
+    // name: String,
+    // protocol: String,
 }
 
 #[derive(Deserialize)]
@@ -47,8 +88,8 @@ struct Metadata {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Status {
-    #[serde(rename = "containerStatuses")]
     container_statuses: Vec<ContainerStatus>,
 }
 

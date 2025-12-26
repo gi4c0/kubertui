@@ -9,6 +9,11 @@ pub enum AppEvent {
     Crossterm(CrosstermEvent),
     Quit,
     SelectNamespace(String),
+    PortForward {
+        pod_name: String,
+        local_port: u16,
+        app_port: u16,
+    },
 }
 
 pub struct EventHandler {

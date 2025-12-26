@@ -1,6 +1,6 @@
-use std::os::macos::raw::stat;
+mod port_forward_popup;
 
-use crossterm::event::{KeyCode, KeyEventKind};
+use crossterm::event::KeyCode;
 
 use ratatui::{
     Frame,
@@ -12,8 +12,9 @@ use ratatui::{
 
 use crate::{
     app::{
-        FOCUS_COLOR,
+        FOCUS_COLOR, centered_rect,
         events::{AppEvent, EventSender},
+        pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
     },
     error::AppResult,
     kubectl::pods::{KnownPodStatus, Pod, PodStatus, get_pods_list},
@@ -27,14 +28,16 @@ pub struct PodsList {
     filter: String,
     is_filter_mod: bool,
     longest_name: u16,
+    port_forward_popup: Option<PortForwardPopup>,
 }
 
 impl PodsList {
     pub async fn new(event_sender: EventSender, namespace: String) -> AppResult<Self> {
         let pods = get_pods_list(namespace).await?;
-        let mut state = TableState::new();
 
+        let mut state = TableState::new();
         state.select(Some(0));
+
         let longest_name = pods
             .iter()
             .max_by_key(|p| p.name.len())
@@ -49,10 +52,15 @@ impl PodsList {
             state,
             filter: String::new(),
             is_filter_mod: false,
+            port_forward_popup: None,
         })
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+        self.draw_list(area, frame);
+    }
+
+    fn draw_list(&mut self, area: Rect, frame: &mut Frame) {
         let header = ["Name", "Containers"]
             .into_iter()
             .map(Cell::from)
@@ -124,12 +132,42 @@ impl PodsList {
             frame.render_stateful_widget(table, layouts[1], &mut self.state);
             return;
         }
+
         frame.render_stateful_widget(table, area, &mut self.state);
+
+        if let Some(port_forward_popup) = &mut self.port_forward_popup {
+            // let width = self.filtered_list[self.state.selected().unwrap_or(0)]
+            //     .name
+            //     .len() as u16;
+
+            let area = centered_rect(frame.area(), 30, 3);
+            port_forward_popup.draw(area, frame);
+        }
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) {
-        if key.kind != KeyEventKind::Press {
-            return;
+        if let Some(port_forward_popup) = &mut self.port_forward_popup
+            && let Some(port_forward_popup_action) = port_forward_popup.handle_key_event(key)
+        {
+            match port_forward_popup_action {
+                PortForwardPopupAction::PortForward {
+                    local_port,
+                    app_port,
+                } => {
+                    let pod = self.filtered_list[self.state.selected().unwrap_or(0)].clone();
+
+                    let _ = self.event_sender.send(AppEvent::PortForward {
+                        pod_name: pod.name,
+                        local_port,
+                        app_port,
+                    });
+                    return;
+                }
+
+                PortForwardPopupAction::Quit => {
+                    self.port_forward_popup = None;
+                }
+            }
         }
 
         if self.is_filter_mod {
@@ -160,6 +198,13 @@ impl PodsList {
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('/') => self.is_filter_mod = true,
+            KeyCode::Char('p') => {
+                let pod_containers = self.filtered_list[self.state.selected().unwrap_or(0)]
+                    .containers
+                    .clone();
+
+                self.port_forward_popup = Some(PortForwardPopup::new(pod_containers));
+            }
             _ => {}
         }
     }
