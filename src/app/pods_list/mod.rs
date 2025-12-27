@@ -136,12 +136,7 @@ impl PodsList {
         frame.render_stateful_widget(table, area, &mut self.state);
 
         if let Some(port_forward_popup) = &mut self.port_forward_popup {
-            // let width = self.filtered_list[self.state.selected().unwrap_or(0)]
-            //     .name
-            //     .len() as u16;
-
-            let area = centered_rect(frame.area(), 30, 3);
-            port_forward_popup.draw(area, frame);
+            port_forward_popup.draw(frame);
         }
     }
 
@@ -149,7 +144,7 @@ impl PodsList {
         if let Some(port_forward_popup) = &mut self.port_forward_popup
             && let Some(port_forward_popup_action) = port_forward_popup.handle_key_event(key)
         {
-            match port_forward_popup_action {
+            return match port_forward_popup_action {
                 PortForwardPopupAction::PortForward {
                     local_port,
                     app_port,
@@ -161,13 +156,12 @@ impl PodsList {
                         local_port,
                         app_port,
                     });
-                    return;
                 }
 
                 PortForwardPopupAction::Quit => {
                     self.port_forward_popup = None;
                 }
-            }
+            };
         }
 
         if self.is_filter_mod {
