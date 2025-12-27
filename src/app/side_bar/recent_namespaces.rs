@@ -2,12 +2,11 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::Rect,
-    style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
+    widgets::{List, ListItem, ListState},
 };
 
 use crate::app::{
-    FOCUS_COLOR,
+    common::{build_block, get_highlight_style},
     events::{AppEvent, EventSender},
 };
 
@@ -42,18 +41,8 @@ impl RecentNamespacesList {
             .collect();
 
         let list = List::new(namespaces_list_items)
-            .block(
-                Block::default()
-                    .title("Recent Namespaces")
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded),
-            )
-            .highlight_style(
-                Style::default()
-                    .bg(FOCUS_COLOR)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD),
-            );
+            .block(build_block("Recent Namespaces"))
+            .highlight_style(get_highlight_style());
 
         frame.render_stateful_widget(list, area, &mut self.state);
     }

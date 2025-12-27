@@ -1,5 +1,5 @@
 use crate::app::{
-    FOCUS_COLOR,
+    common::{FOCUS_COLOR, build_block, get_highlight_style},
     events::{AppEvent, EventSender},
 };
 use ratatui::{
@@ -55,18 +55,8 @@ impl NamespacesList {
             .collect();
 
         let list = List::new(namespaces_list_items)
-            .block(
-                Block::default()
-                    .title("Select Namespace")
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded),
-            )
-            .highlight_style(
-                Style::default()
-                    .bg(FOCUS_COLOR)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD),
-            );
+            .block(build_block("Select Namespace"))
+            .highlight_style(get_highlight_style());
 
         if self.is_filter_mod || !self.filter.is_empty() {
             let layouts = Layout::default()

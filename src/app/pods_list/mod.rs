@@ -6,13 +6,12 @@ use ratatui::{
     Frame,
     crossterm::event::KeyEvent,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table, TableState},
+    widgets::{Cell, Paragraph, Row, Table, TableState},
 };
 
 use crate::{
     app::{
-        FOCUS_COLOR, centered_rect,
+        common::{FOCUS_COLOR, build_block, get_highlight_style},
         events::{AppEvent, EventSender},
         pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
     },
@@ -98,18 +97,8 @@ impl PodsList {
             ],
         )
         .header(header)
-        .block(
-            Block::default()
-                .title("Select Pod")
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded),
-        )
-        .row_highlight_style(
-            Style::default()
-                .bg(FOCUS_COLOR)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
-        );
+        .block(build_block("Select pod"))
+        .row_highlight_style(get_highlight_style());
 
         if self.is_filter_mod || !self.filter.is_empty() {
             let layouts = Layout::default()
@@ -117,10 +106,7 @@ impl PodsList {
                 .constraints(vec![Constraint::Length(3), Constraint::Min(1)])
                 .split(area);
 
-            let mut block = Block::default()
-                .borders(Borders::ALL)
-                .title("Filter")
-                .border_type(BorderType::Rounded);
+            let mut block = build_block("Filter");
 
             if self.is_filter_mod {
                 block = block.border_style(FOCUS_COLOR);

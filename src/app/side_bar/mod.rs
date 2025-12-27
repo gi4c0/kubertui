@@ -1,3 +1,4 @@
+pub mod port_forwards;
 mod recent_namespaces;
 
 use ratatui::{
@@ -6,16 +7,21 @@ use ratatui::{
     widgets::{Block, BorderType, Borders},
 };
 
-use crate::app::{events::EventSender, side_bar::recent_namespaces::RecentNamespacesList};
+use crate::app::{
+    events::EventSender,
+    side_bar::{port_forwards::PortForwardsList, recent_namespaces::RecentNamespacesList},
+};
 
 pub struct SideBar {
     pub recent_namespaces: RecentNamespacesList,
+    pub port_forwards: PortForwardsList,
 }
 
 impl SideBar {
     pub fn new(event_sender: EventSender) -> Self {
         Self {
             recent_namespaces: RecentNamespacesList::new(event_sender),
+            port_forwards: PortForwardsList::default(),
         }
     }
 }

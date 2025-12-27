@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{FOCUS_COLOR, centered_rect},
+    app::common::{FOCUS_COLOR, build_block, centered_rect, get_highlight_style},
     kubectl::pods::PodContainer,
 };
 
@@ -53,16 +53,8 @@ impl PortForwardPopup {
 
     pub fn draw(&mut self, frame: &mut Frame) {
         if let Some(container) = &self.selected_container {
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .title(format!(
-                    "Forward to {}:{}",
-                    container.name.as_str(),
-                    container.port
-                ))
-                .title_alignment(Alignment::Center)
-                .border_type(BorderType::Rounded)
-                .border_style(FOCUS_COLOR);
+            let title = &format!("Forward to {}:{}", container.name.as_str(), container.port);
+            let block = build_block(title.as_str()).title_alignment(Alignment::Center);
 
             let filter_widget = Paragraph::new(self.port.as_str()).block(block);
             let area = centered_rect(frame.area(), 30, 3);
@@ -77,19 +69,11 @@ impl PortForwardPopup {
             .map(|item| ListItem::from(item.name.as_str()))
             .collect();
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title("Choose the container")
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Rounded)
-            .border_style(FOCUS_COLOR);
+        let block = build_block("Choose the container").title_alignment(Alignment::Center);
 
-        let list = List::new(list_items).block(block).highlight_style(
-            Style::default()
-                .bg(FOCUS_COLOR)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
-        );
+        let list = List::new(list_items)
+            .block(block)
+            .highlight_style(get_highlight_style());
 
         let area = centered_rect(frame.area(), 30, self.containers_len() as u16 + 3);
         frame.render_stateful_widget(list, area, &mut self.state);
