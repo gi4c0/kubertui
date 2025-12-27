@@ -1,3 +1,4 @@
+mod common;
 mod events;
 mod namespaces_list;
 mod pods_list;
@@ -7,8 +8,7 @@ use anyhow::Context;
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{Event, KeyEvent, KeyEventKind},
-    layout::{Constraint, Direction, Layout, Rect},
-    style::Color,
+    layout::{Constraint, Direction, Layout},
 };
 
 use crate::{
@@ -16,13 +16,11 @@ use crate::{
         events::{AppEvent, EventHandler},
         namespaces_list::NamespacesList,
         pods_list::PodsList,
-        side_bar::SideBar,
+        side_bar::{SideBar, port_forwards::PortForward},
     },
     error::AppResult,
     kubectl::namespace,
 };
-
-pub const FOCUS_COLOR: Color = Color::Cyan;
 
 enum ActiveWindow {
     Main(MainWindow),
@@ -100,7 +98,12 @@ impl App {
                 local_port,
                 app_port,
             } => {
-                println!("{pod_name}:{app_port}");
+                self.side_bar.port_forwards.add_to_list(PortForward {
+                    pod_name,
+                    is_active: true,
+                    local_port,
+                    app_port,
+                });
             }
         }
 
@@ -137,24 +140,4 @@ impl Default for App {
             pods: None,
         }
     }
-}
-
-fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Length((area.width - width) / 2),
-            Constraint::Length(width),
-            Constraint::Length((area.width - width) / 2),
-        ])
-        .split(area);
-
-    Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length((area.height - height) / 2),
-            Constraint::Length(height),
-            Constraint::Length((area.height - height) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }
