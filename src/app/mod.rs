@@ -49,6 +49,8 @@ pub struct App {
 
 impl App {
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
+        let cache = cache::read_cache().await?;
+
         let namespaces = namespace::get_namespaces()
             .await
             .context("Failed to download context")?;
@@ -87,7 +89,10 @@ impl App {
                 }
                 _ => {}
             },
-            AppEvent::Quit => self.exit = true,
+            AppEvent::Quit => {
+                self.exit = true;
+                cache::save_cache(self).await?;
+            }
             AppEvent::SelectNamespace(new_namespace) => {
                 self.side_bar
                     .recent_namespaces

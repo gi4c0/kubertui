@@ -105,7 +105,7 @@ pub enum PodStatus {
     Unknown(serde_json::Value),
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum KnownPodStatus {
     #[serde(rename_all = "camelCase")]

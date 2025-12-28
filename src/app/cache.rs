@@ -1,3 +1,5 @@
+use std::io::ErrorKind;
+
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -8,15 +10,15 @@ use crate::{
     kubectl::pods::{Pod, PodContainer},
 };
 
+const DIR_PATH: &str = "/tmp/kubertui";
 const FILE_PATH: &str = "/tmp/kubertui/cache.json";
 
 pub async fn save_cache(app: &App) -> AppResult<()> {
+    ensure_dir().await?;
+
     let cache_payload = AppCache {
         namespaces: app.namespaces.clone().into(),
-        pods: match &app.pods {
-            Some(pods) => Some(pods.clone().into()),
-            None => None,
-        },
+        pods: app.pods.clone().map(|p| p.into()),
         exit: app.exit,
         active_window: app.active_window,
         main_window: app.main_window,
@@ -35,17 +37,36 @@ pub async fn save_cache(app: &App) -> AppResult<()> {
     Ok(())
 }
 
-pub async fn read_cache() -> AppResult<AppCache> {
-    let content = fs::read(FILE_PATH)
-        .await
-        .context("failed to read cache into string")
-        .map_err(AppError::CacheError)?;
+pub async fn read_cache() -> AppResult<Option<AppCache>> {
+    let content = match fs::read(FILE_PATH).await {
+        Ok(content) => content,
+        Err(err) => {
+            if err.kind() == ErrorKind::NotFound {
+                return Ok(None);
+            }
+
+            return Err(AppError::CacheError(anyhow::format_err!(
+                "failed to read cache into string: {:?}",
+                err
+            )));
+        }
+    };
 
     let cache: AppCache =
         serde_json::from_slice(&content).context("failed to deserialize cache")?;
 
-    Ok(cache)
+    Ok(Some(cache))
 }
+
+async fn ensure_dir() -> AppResult<()> {
+    fs::create_dir_all(DIR_PATH)
+        .await
+        .with_context(|| format!("failed to create cache dir: {DIR_PATH}"))
+        .map_err(AppError::CacheError)?;
+
+    Ok(())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppCache {
     pub namespaces: NamespacesListCache,
