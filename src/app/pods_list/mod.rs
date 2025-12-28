@@ -11,6 +11,7 @@ use ratatui::{
 
 use crate::{
     app::{
+        cache::{PodsListCache, StateCache},
         common::{FOCUS_COLOR, build_block, get_highlight_style},
         events::{AppEvent, EventSender},
         pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
@@ -19,6 +20,7 @@ use crate::{
     kubectl::pods::{KnownPodStatus, Pod, PodStatus, get_pods_list},
 };
 
+#[derive(Debug, Clone)]
 pub struct PodsList {
     original_list: Vec<Pod>,
     filtered_list: Vec<Pod>,
@@ -28,11 +30,35 @@ pub struct PodsList {
     is_filter_mod: bool,
     longest_name: u16,
     port_forward_popup: Option<PortForwardPopup>,
+    namespace: String,
+}
+
+impl From<PodsList> for PodsListCache {
+    fn from(value: PodsList) -> Self {
+        Self {
+            filter: value.filter,
+            filtered_list: value.filtered_list,
+            is_filter_mod: value.is_filter_mod,
+            original_list: value.original_list,
+            longest_name: value.longest_name,
+            namespace: value.namespace,
+            state: StateCache {
+                selected: value.state.selected(),
+            },
+            port_forward_popup: match value.port_forward_popup {
+                Some(port_forward_popup) => {
+                    let i = (&port_forward_popup).into();
+                    Some(i)
+                }
+                None => None,
+            },
+        }
+    }
 }
 
 impl PodsList {
     pub async fn new(event_sender: EventSender, namespace: String) -> AppResult<Self> {
-        let pods = get_pods_list(namespace).await?;
+        let pods = get_pods_list(namespace.as_str()).await?;
 
         let mut state = TableState::new();
         state.select(Some(0));
@@ -45,6 +71,7 @@ impl PodsList {
 
         Ok(Self {
             filtered_list: pods.clone(),
+            namespace,
             longest_name,
             original_list: pods,
             event_sender,
@@ -141,6 +168,7 @@ impl PodsList {
                         pod_name: pod.name,
                         local_port,
                         app_port,
+                        namespace: self.namespace.clone(),
                     });
                 }
 

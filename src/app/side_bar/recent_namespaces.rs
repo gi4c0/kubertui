@@ -6,14 +6,27 @@ use ratatui::{
 };
 
 use crate::app::{
+    cache::{RecentNamespacesListCache, StateCache},
     common::{build_block, get_highlight_style},
     events::{AppEvent, EventSender},
 };
 
+#[derive(Debug, Clone)]
 pub struct RecentNamespacesList {
     state: ListState,
     list: Vec<String>,
     event_sender: EventSender,
+}
+
+impl From<RecentNamespacesList> for RecentNamespacesListCache {
+    fn from(value: RecentNamespacesList) -> Self {
+        Self {
+            state: StateCache {
+                selected: value.state.selected(),
+            },
+            list: value.list,
+        }
+    }
 }
 
 impl RecentNamespacesList {

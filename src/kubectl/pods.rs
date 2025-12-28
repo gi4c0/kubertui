@@ -1,25 +1,25 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{error::AppResult, kubectl::run_kubectl_command};
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pod {
     pub name: String,
     pub container_statuses: Vec<PodStatus>,
     pub containers: Vec<PodContainer>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PodContainer {
     pub name: String,
     // TODO: There might be multiple ports.
     pub port: u16,
 }
 
-pub async fn get_pods_list(namespace: String) -> AppResult<Vec<Pod>> {
+pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
     let parsed: ApiResponse = run_kubectl_command(
         "kubectl",
-        vec!["get", "pods", "-n", namespace.as_str(), "-o", "json"],
+        vec!["get", "pods", "-n", namespace, "-o", "json"],
     )
     .await?;
 
@@ -98,7 +98,7 @@ struct ContainerStatus {
     state: PodStatus,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum PodStatus {
     Known(KnownPodStatus),

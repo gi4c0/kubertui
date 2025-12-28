@@ -5,6 +5,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AppError {
+    #[error("failed to save/retrieve cache")]
+    CacheError(Error),
+
     #[error("failed to load namespaces")]
     FailedRunKubeCtlCommand(Error),
 

@@ -7,20 +7,37 @@ use ratatui::{
     text::Span,
     widgets::{List, ListItem, ListState},
 };
+use serde::{Deserialize, Serialize};
 
-use crate::app::common::{build_block, get_highlight_style};
+use crate::app::{
+    cache::{PortForwardsListCache, StateCache},
+    common::{build_block, get_highlight_style},
+};
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct PortForwardsList {
     list: Vec<PortForward>,
     state: ListState,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PortForward {
+    pub namespace: String,
     pub pod_name: String,
     pub is_active: bool,
     pub local_port: u16,
     pub app_port: u16,
+}
+
+impl From<PortForwardsList> for PortForwardsListCache {
+    fn from(value: PortForwardsList) -> Self {
+        Self {
+            list: value.list,
+            state: StateCache {
+                selected: value.state.selected(),
+            },
+        }
+    }
 }
 
 impl PortForwardsList {
@@ -30,6 +47,19 @@ impl PortForwardsList {
         } else {
             self.list.push(new_item);
         }
+    }
+
+    pub async fn add_to_list_and_port_forward(&mut self, new_item: PortForward) {
+        // kubectl::start_port_forward(
+        //     new_item.namespace.as_str(),
+        //     new_item.pod_name.as_str(),
+        //     new_item.local_port,
+        //     new_item.app_port,
+        // )
+        // .await
+        // .unwrap();
+
+        self.add_to_list(new_item);
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {

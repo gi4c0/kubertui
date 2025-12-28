@@ -2,20 +2,38 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::Alignment,
-    style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{List, ListItem, ListState, Paragraph},
 };
 
 use crate::{
-    app::common::{FOCUS_COLOR, build_block, centered_rect, get_highlight_style},
+    app::{
+        cache::{PortForwardPopupCache, StateCache},
+        common::{build_block, centered_rect, get_highlight_style},
+    },
     kubectl::pods::PodContainer,
 };
 
+#[derive(Debug, Clone)]
 pub struct PortForwardPopup {
     port: String,
     pod_containers: Vec<PodContainer>,
     state: ListState,
     selected_container: Option<PodContainer>,
+}
+
+impl From<&PortForwardPopup> for PortForwardPopupCache {
+    fn from(value: &PortForwardPopup) -> Self {
+        let value = value.clone();
+
+        Self {
+            port: value.port,
+            pod_containers: value.pod_containers,
+            selected_container: value.selected_container,
+            state: StateCache {
+                selected: value.state.selected(),
+            },
+        }
+    }
 }
 
 pub enum PortForwardPopupAction {

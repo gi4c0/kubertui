@@ -6,6 +6,9 @@ use crate::error::{AppError, AppResult};
 
 pub mod namespace;
 pub mod pods;
+mod port_forward;
+
+pub use port_forward::*;
 
 async fn run_kubectl_command<T: for<'a> Deserialize<'a>>(
     command: &str,

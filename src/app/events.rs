@@ -13,6 +13,7 @@ pub enum AppEvent {
         pod_name: String,
         local_port: u16,
         app_port: u16,
+        namespace: String,
     },
 }
 
@@ -43,10 +44,6 @@ impl EventHandler {
             .await
             .context("Failed to get event")
             .map_err(AppError::GeneralError)
-    }
-
-    pub async fn send(&mut self, app_event: AppEvent) {
-        let _ = self.sender.send(app_event);
     }
 }
 

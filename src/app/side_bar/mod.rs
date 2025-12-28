@@ -7,13 +7,24 @@ use ratatui::{
 };
 
 use crate::app::{
+    cache::SideBarCache,
     events::EventSender,
     side_bar::{port_forwards::PortForwardsList, recent_namespaces::RecentNamespacesList},
 };
 
+#[derive(Clone, Debug)]
 pub struct SideBar {
     pub recent_namespaces: RecentNamespacesList,
     pub port_forwards: PortForwardsList,
+}
+
+impl From<SideBar> for SideBarCache {
+    fn from(value: SideBar) -> Self {
+        Self {
+            recent_namespaces: value.recent_namespaces.into(),
+            port_forwards: value.port_forwards.into(),
+        }
+    }
 }
 
 impl SideBar {

@@ -1,4 +1,5 @@
 use crate::app::{
+    cache::{NamespacesListCache, StateCache},
     common::{FOCUS_COLOR, build_block, get_highlight_style},
     events::{AppEvent, EventSender},
 };
@@ -6,10 +7,10 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
 };
 
+#[derive(Debug, Clone)]
 pub struct NamespacesList {
     original_list: Vec<String>,
     filtered_list: Vec<String>,
@@ -17,6 +18,20 @@ pub struct NamespacesList {
     filter: String,
     is_filter_mod: bool,
     event_sender: EventSender,
+}
+
+impl From<NamespacesList> for NamespacesListCache {
+    fn from(value: NamespacesList) -> Self {
+        Self {
+            filter: value.filter,
+            is_filter_mod: value.is_filter_mod,
+            filtered_list: value.filtered_list,
+            original_list: value.original_list,
+            state: StateCache {
+                selected: value.state.selected(),
+            },
+        }
+    }
 }
 
 impl NamespacesList {

@@ -1,3 +1,4 @@
+mod cache;
 mod common;
 mod events;
 mod namespaces_list;
@@ -10,6 +11,7 @@ use ratatui::{
     crossterm::event::{Event, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout},
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
@@ -22,12 +24,14 @@ use crate::{
     kubectl::namespace,
 };
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 enum ActiveWindow {
     Main(MainWindow),
     RecentNamespaces,
     RecentPortForwarding,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 enum MainWindow {
     Namespaces,
     Pods,
@@ -97,13 +101,18 @@ impl App {
                 pod_name,
                 local_port,
                 app_port,
+                namespace,
             } => {
-                self.side_bar.port_forwards.add_to_list(PortForward {
-                    pod_name,
-                    is_active: true,
-                    local_port,
-                    app_port,
-                });
+                self.side_bar
+                    .port_forwards
+                    .add_to_list_and_port_forward(PortForward {
+                        pod_name,
+                        is_active: true,
+                        local_port,
+                        app_port,
+                        namespace,
+                    })
+                    .await;
             }
         }
 
