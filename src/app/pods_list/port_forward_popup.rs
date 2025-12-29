@@ -20,13 +20,21 @@ pub struct PortForwardPopup {
     selected_container: Option<PodContainer>,
 }
 
-impl From<&PortForwardPopup> for PortForwardPopupCache {
-    fn from(value: &PortForwardPopup) -> Self {
-        let value = value.clone();
-
+impl From<PortForwardPopup> for PortForwardPopupCache {
+    fn from(value: PortForwardPopup) -> Self {
         Self {
             port: value.port,
             pod_containers: value.pod_containers_list.into(),
+            selected_container: value.selected_container,
+        }
+    }
+}
+
+impl From<PortForwardPopupCache> for PortForwardPopup {
+    fn from(value: PortForwardPopupCache) -> Self {
+        Self {
+            port: value.port,
+            pod_containers_list: value.pod_containers.into(),
             selected_container: value.selected_container,
         }
     }

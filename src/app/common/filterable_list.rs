@@ -20,7 +20,6 @@ pub struct FilterableList<T> {
     filtered_list: Vec<usize>,
     filter: String,
     is_filter_mod: bool,
-    is_focused: bool,
 }
 
 impl<T> From<FilterableList<T>> for FilterableListCache<T> {
@@ -33,7 +32,24 @@ impl<T> From<FilterableList<T>> for FilterableListCache<T> {
             state: StateCache {
                 selected: value.state.selected(),
             },
-            is_filterable: value.is_filter_mod,
+            is_filterable: value.is_filterable,
+            list_name: value.list_name,
+        }
+    }
+}
+
+impl<T> From<FilterableListCache<T>> for FilterableList<T> {
+    fn from(value: FilterableListCache<T>) -> Self {
+        let mut state = ListState::default();
+        state.select(value.state.selected);
+
+        Self {
+            filter: value.filter,
+            filtered_list: value.filtered_list,
+            is_filter_mod: value.is_filter_mod,
+            list: value.list,
+            state,
+            is_filterable: value.is_filterable,
             list_name: value.list_name,
         }
     }
@@ -43,17 +59,9 @@ impl<Item> FilterableList<Item>
 where
     Item: Clone + AsRef<str>,
 {
-    pub fn add_to_list(&mut self, new_item: Item) {
-        self.list.push(new_item);
+    pub fn append_to_list(&mut self, new_item: Item) {
+        self.list.insert(0, new_item);
         self.update_filtered_list();
-    }
-
-    pub fn focus(&mut self) {
-        self.is_focused = true;
-    }
-
-    pub fn unfocus(&mut self) {
-        self.is_focused = false;
     }
 
     pub fn new(list_name: String, is_filterable: bool) -> Self {
@@ -66,7 +74,6 @@ where
             is_filter_mod: false,
             list: vec![],
             is_filterable,
-            is_focused: false,
             list_name,
             state,
         }
@@ -131,9 +138,12 @@ where
                 KeyCode::Esc => {
                     self.filter.clear();
                     self.is_filter_mod = false;
+                    self.update_filtered_list();
+                    self.state.select(Some(0));
                 }
                 KeyCode::Backspace => {
                     self.filter.pop();
+                    self.update_filtered_list();
                 }
                 KeyCode::Char(ch) => {
                     self.filter.push(ch);
@@ -152,8 +162,8 @@ where
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Enter => {
-                let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                return Some(ListEvent::SelectedItem(self.list[index].clone()));
+                let index = self.filtered_list.get(self.state.selected().unwrap_or(0));
+                return index.map(|&index| ListEvent::SelectedItem(self.list[index].clone()));
             }
             KeyCode::Char('q') => return Some(ListEvent::Quit),
             _ => {}
@@ -168,7 +178,7 @@ where
             .iter()
             .enumerate()
             .filter(|(_, item)| {
-                if self.filter.is_empty() {
+                if self.filter.trim().is_empty() {
                     return true;
                 }
 

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
+        cache::AppCache,
         events::{AppEvent, EventHandler},
         namespaces_list::NamespacesList,
         pods_list::PodsList,
@@ -51,10 +52,16 @@ impl App {
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
         let cache = cache::read_cache().await;
 
-        let namespaces = namespace::get_namespaces()
-            .await
-            .context("Failed to download context")?;
-        self.namespaces.update_list(namespaces);
+        match cache {
+            Some(cache) => self.merge_cache(cache),
+            None => {
+                let namespaces = namespace::get_namespaces()
+                    .await
+                    .context("Failed to download namespaces")?;
+
+                self.namespaces.update_list(namespaces);
+            }
+        };
 
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
@@ -106,7 +113,12 @@ impl App {
                     .recent_namespaces
                     .add_to_list(new_namespace.clone());
 
-                self.pods = Some(PodsList::new(self.event_handler.sender(), new_namespace).await?);
+                self.pods = Some(
+                    PodsList::new(self.event_handler.sender())
+                        .load_by_namespace(new_namespace)
+                        .await?,
+                );
+
                 self.active_window = ActiveWindow::Main(MainWindow::Pods);
                 self.main_window = MainWindow::Pods;
             }
@@ -127,6 +139,12 @@ impl App {
                     })
                     .await;
             }
+
+            AppEvent::ClosePodsList => {
+                self.active_window = ActiveWindow::Main(MainWindow::Namespaces);
+                self.pods = None;
+                self.main_window = MainWindow::Namespaces;
+            }
         }
 
         Ok(())
@@ -145,6 +163,20 @@ impl App {
             ActiveWindow::RecentNamespaces => {}
             ActiveWindow::RecentPortForwarding => {}
         }
+    }
+
+    fn merge_cache(&mut self, cache: AppCache) {
+        self.active_window = cache.active_window;
+        self.main_window = cache.main_window;
+
+        self.namespaces
+            .restore_from_cache(cache.namespaces.namespace_list.into());
+
+        self.pods = cache
+            .pods
+            .map(|pods_cache| PodsList::from_cache(pods_cache, self.event_handler.sender()));
+
+        self.side_bar = SideBar::from_cache(cache.side_bar, self.event_handler.sender());
     }
 }
 

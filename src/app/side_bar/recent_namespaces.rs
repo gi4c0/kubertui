@@ -21,6 +21,13 @@ impl From<RecentNamespacesList> for RecentNamespacesListCache {
 }
 
 impl RecentNamespacesList {
+    pub fn from_cache(value: RecentNamespacesListCache, event_sender: EventSender) -> Self {
+        Self {
+            event_sender,
+            recent_namespaces_list: value.recent_namespaces_list.into(),
+        }
+    }
+
     pub fn new(event_sender: EventSender) -> Self {
         Self {
             event_sender,
@@ -29,7 +36,19 @@ impl RecentNamespacesList {
     }
 
     pub fn add_to_list(&mut self, new_namespace: String) {
-        self.recent_namespaces_list.add_to_list(new_namespace);
+        let existing_index = self
+            .recent_namespaces_list
+            .list
+            .iter()
+            .position(|i| i == new_namespace.as_str());
+
+        match existing_index {
+            Some(existing_index) => {
+                self.recent_namespaces_list.list.remove(existing_index);
+                self.recent_namespaces_list.list.insert(0, new_namespace);
+            }
+            None => self.recent_namespaces_list.append_to_list(new_namespace),
+        };
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {

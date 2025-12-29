@@ -11,6 +11,7 @@ use ratatui::{
 
 use crate::{
     app::{
+        ActiveWindow, App, MainWindow,
         cache::{PodsListCache, StateCache},
         common::{FOCUS_COLOR, build_block, get_highlight_style},
         events::{AppEvent, EventSender},
@@ -45,23 +46,31 @@ impl From<PodsList> for PodsListCache {
             state: StateCache {
                 selected: value.state.selected(),
             },
-            port_forward_popup: match value.port_forward_popup {
-                Some(port_forward_popup) => {
-                    let i = (&port_forward_popup).into();
-                    Some(i)
-                }
-                None => None,
-            },
+            port_forward_popup: value.port_forward_popup.map(|i| i.into()),
         }
     }
 }
 
 impl PodsList {
-    pub async fn new(event_sender: EventSender, namespace: String) -> AppResult<Self> {
-        let pods = get_pods_list(namespace.as_str()).await?;
+    pub fn from_cache(value: PodsListCache, event_sender: EventSender) -> Self {
+        let mut state = TableState::default();
+        state.select(value.state.selected);
 
-        let mut state = TableState::new();
-        state.select(Some(0));
+        Self {
+            filter: value.filter,
+            event_sender,
+            filtered_list: value.filtered_list,
+            is_filter_mod: value.is_filter_mod,
+            original_list: value.original_list,
+            longest_name: value.longest_name,
+            namespace: value.namespace,
+            state,
+            port_forward_popup: value.port_forward_popup.map(|i| i.into()),
+        }
+    }
+
+    pub async fn load_by_namespace(mut self, namespace: String) -> AppResult<Self> {
+        let pods = get_pods_list(namespace.as_str()).await?;
 
         let longest_name = pods
             .iter()
@@ -69,17 +78,28 @@ impl PodsList {
             .map(|p| p.name.len())
             .unwrap_or(10) as u16;
 
-        Ok(Self {
-            filtered_list: pods.clone(),
-            namespace,
-            longest_name,
-            original_list: pods,
+        self.longest_name = longest_name;
+        self.original_list = pods.clone();
+        self.filtered_list = pods;
+
+        Ok(self)
+    }
+
+    pub fn new(event_sender: EventSender) -> Self {
+        let mut state = TableState::default();
+        state.select(Some(0));
+
+        Self {
+            filtered_list: Vec::new(),
+            namespace: String::new(),
+            longest_name: 0,
+            original_list: Vec::new(),
             event_sender,
             state,
             filter: String::new(),
             is_filter_mod: false,
             port_forward_popup: None,
-        })
+        }
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
@@ -221,6 +241,7 @@ impl PodsList {
 
                 self.port_forward_popup = Some(PortForwardPopup::new(pod_containers));
             }
+            KeyCode::Esc => self.event_sender.send(AppEvent::ClosePodsList),
             _ => {}
         }
     }

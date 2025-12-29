@@ -31,6 +31,10 @@ impl NamespacesList {
         self.namespace_list.draw(area, frame, is_focused);
     }
 
+    pub fn restore_from_cache(&mut self, cache_list: FilterableList<String>) {
+        self.namespace_list = cache_list;
+    }
+
     pub fn update_list(&mut self, new_list: Vec<String>) {
         self.namespace_list.set_items(new_list);
     }

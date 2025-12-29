@@ -15,6 +15,7 @@ pub enum AppEvent {
         app_port: u16,
         namespace: String,
     },
+    ClosePodsList,
 }
 
 pub struct EventHandler {

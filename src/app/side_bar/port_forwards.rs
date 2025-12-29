@@ -41,6 +41,16 @@ impl From<PortForwardsList> for PortForwardsListCache {
 }
 
 impl PortForwardsList {
+    pub fn from_cache(value: PortForwardsListCache) -> Self {
+        let mut state = ListState::default();
+        state.select(value.state.selected);
+
+        Self {
+            list: value.list,
+            state,
+        }
+    }
+
     pub fn add_to_list(&mut self, new_item: PortForward) {
         if new_item.is_active {
             self.list.insert(0, new_item);

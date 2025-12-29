@@ -19,7 +19,6 @@ pub async fn save_cache(app: &App) -> AppResult<()> {
     let cache_payload = AppCache {
         namespaces: app.namespaces.clone().into(),
         pods: app.pods.clone().map(|p| p.into()),
-        exit: app.exit,
         active_window: app.active_window,
         main_window: app.main_window,
         side_bar: app.side_bar.clone().into(),
@@ -72,7 +71,6 @@ pub struct AppCache {
     pub namespaces: NamespacesListCache,
     pub pods: Option<PodsListCache>,
     pub side_bar: SideBarCache,
-    pub exit: bool,
     pub main_window: MainWindow,
     pub active_window: ActiveWindow,
 }

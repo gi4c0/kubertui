@@ -31,7 +31,13 @@ async fn run_kubectl_command<T: for<'a> Deserialize<'a>>(
     }
 
     let parsed: T = serde_json::from_slice(&output.stdout)
-        .context("Invalid JSON")
+        .with_context(|| {
+            format!(
+                "invalid JSON from command: '{} {}'",
+                command,
+                args.join(" ")
+            )
+        })
         .map_err(AppError::FailedRunKubeCtlCommand)?;
 
     Ok(parsed)

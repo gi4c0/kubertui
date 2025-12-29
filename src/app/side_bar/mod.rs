@@ -28,6 +28,16 @@ impl From<SideBar> for SideBarCache {
 }
 
 impl SideBar {
+    pub fn from_cache(value: SideBarCache, event_sender: EventSender) -> Self {
+        Self {
+            port_forwards: PortForwardsList::from_cache(value.port_forwards),
+            recent_namespaces: RecentNamespacesList::from_cache(
+                value.recent_namespaces,
+                event_sender.clone(),
+            ),
+        }
+    }
+
     pub fn new(event_sender: EventSender) -> Self {
         Self {
             recent_namespaces: RecentNamespacesList::new(event_sender),
