@@ -49,7 +49,7 @@ pub struct App {
 
 impl App {
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
-        let cache = cache::read_cache().await?;
+        let cache = cache::read_cache().await;
 
         let namespaces = namespace::get_namespaces()
             .await

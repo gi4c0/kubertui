@@ -37,25 +37,25 @@ pub async fn save_cache(app: &App) -> AppResult<()> {
     Ok(())
 }
 
-pub async fn read_cache() -> AppResult<Option<AppCache>> {
+pub async fn read_cache() -> Option<AppCache> {
     let content = match fs::read(FILE_PATH).await {
         Ok(content) => content,
         Err(err) => {
             if err.kind() == ErrorKind::NotFound {
-                return Ok(None);
+                return None;
             }
 
-            return Err(AppError::CacheError(anyhow::format_err!(
-                "failed to read cache into string: {:?}",
-                err
-            )));
+            // TODO: handle error: show warning or something
+            todo!()
+            // return Err(AppError::CacheError(anyhow::format_err!(
+            //     "failed to read cache into string: {:?}",
+            //     err
+            // )));
         }
     };
 
-    let cache: AppCache =
-        serde_json::from_slice(&content).context("failed to deserialize cache")?;
-
-    Ok(Some(cache))
+    let cache: Option<AppCache> = serde_json::from_slice(&content).ok();
+    cache
 }
 
 async fn ensure_dir() -> AppResult<()> {
@@ -129,7 +129,7 @@ pub struct FilterableListCache<T> {
     pub state: StateCache,
     pub list_name: String,
     pub is_filterable: bool,
-    pub filtered_list: Vec<T>,
+    pub filtered_list: Vec<usize>,
     pub filter: String,
     pub is_filter_mod: bool,
 }
