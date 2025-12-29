@@ -91,8 +91,7 @@ pub struct PortForwardsListCache {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RecentNamespacesListCache {
-    pub state: StateCache,
-    pub list: Vec<String>,
+    pub recent_namespaces_list: FilterableListCache<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -110,21 +109,27 @@ pub struct PodsListCache {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PortForwardPopupCache {
     pub port: String,
-    pub pod_containers: Vec<PodContainer>,
-    pub state: StateCache,
+    pub pod_containers: FilterableListCache<PodContainer>,
     pub selected_container: Option<PodContainer>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NamespacesListCache {
-    pub original_list: Vec<String>,
-    pub filtered_list: Vec<String>,
-    pub filter: String,
-    pub is_filter_mod: bool,
-    pub state: StateCache,
+    pub namespace_list: FilterableListCache<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StateCache {
     pub selected: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilterableListCache<T> {
+    pub list: Vec<T>,
+    pub state: StateCache,
+    pub list_name: String,
+    pub is_filterable: bool,
+    pub filtered_list: Vec<T>,
+    pub filter: String,
+    pub is_filter_mod: bool,
 }

@@ -16,6 +16,12 @@ pub struct PodContainer {
     pub port: u16,
 }
 
+impl AsRef<str> for PodContainer {
+    fn as_ref(&self) -> &str {
+        self.name.as_str()
+    }
+}
+
 pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
     let parsed: ApiResponse = run_kubectl_command(
         "kubectl",

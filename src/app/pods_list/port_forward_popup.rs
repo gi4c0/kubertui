@@ -2,13 +2,13 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::Alignment,
-    widgets::{List, ListItem, ListState, Paragraph},
+    widgets::Paragraph,
 };
 
 use crate::{
     app::{
-        cache::{PortForwardPopupCache, StateCache},
-        common::{build_block, centered_rect, get_highlight_style},
+        cache::PortForwardPopupCache,
+        common::{FilterableList, ListEvent, build_block, centered_rect},
     },
     kubectl::pods::PodContainer,
 };
@@ -16,8 +16,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct PortForwardPopup {
     port: String,
-    pod_containers: Vec<PodContainer>,
-    state: ListState,
+    pod_containers_list: FilterableList<PodContainer>,
     selected_container: Option<PodContainer>,
 }
 
@@ -27,11 +26,8 @@ impl From<&PortForwardPopup> for PortForwardPopupCache {
 
         Self {
             port: value.port,
-            pod_containers: value.pod_containers,
+            pod_containers: value.pod_containers_list.into(),
             selected_container: value.selected_container,
-            state: StateCache {
-                selected: value.state.selected(),
-            },
         }
     }
 }
@@ -45,13 +41,10 @@ impl PortForwardPopup {
     const ALLOWED_CHARS: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
     pub fn containers_len(&self) -> usize {
-        self.pod_containers.len()
+        self.pod_containers_list.list.len()
     }
 
     pub fn new(pod_containers: Vec<PodContainer>) -> Self {
-        let mut state = ListState::default();
-        state.select(Some(1));
-
         let mut selected_container = None;
         let mut port = String::new();
 
@@ -61,11 +54,13 @@ impl PortForwardPopup {
             selected_container = Some(container);
         }
 
+        let mut list = FilterableList::new("Select container".to_string(), false);
+        list.update_list(pod_containers);
+
         Self {
             port,
-            pod_containers,
+            pod_containers_list: list,
             selected_container,
-            state,
         }
     }
 
@@ -74,27 +69,15 @@ impl PortForwardPopup {
             let title = &format!("Forward to {}:{}", container.name.as_str(), container.port);
             let block = build_block(title.as_str()).title_alignment(Alignment::Center);
 
-            let filter_widget = Paragraph::new(self.port.as_str()).block(block);
+            let enter_port_widget = Paragraph::new(self.port.as_str()).block(block);
             let area = centered_rect(frame.area(), 30, 3);
-            frame.render_widget(filter_widget, area);
+            frame.render_widget(enter_port_widget, area);
 
             return;
         }
 
-        let list_items: Vec<ListItem> = self
-            .pod_containers
-            .iter()
-            .map(|item| ListItem::from(item.name.as_str()))
-            .collect();
-
-        let block = build_block("Choose the container").title_alignment(Alignment::Center);
-
-        let list = List::new(list_items)
-            .block(block)
-            .highlight_style(get_highlight_style());
-
         let area = centered_rect(frame.area(), 30, self.containers_len() as u16 + 3);
-        frame.render_stateful_widget(list, area, &mut self.state);
+        self.pod_containers_list.draw(area, frame);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<PortForwardPopupAction> {
@@ -119,50 +102,18 @@ impl PortForwardPopup {
             return None;
         }
 
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                return Some(PortForwardPopupAction::Quit);
-            }
-            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
-            KeyCode::Enter => {
-                let container = self.pod_containers[self.state.selected().unwrap_or(0)].clone();
-                self.port = container.port.to_string();
-                self.selected_container = Some(container);
-            }
-            _ => {}
-        };
+        if let Some(list_event) = self.pod_containers_list.handle_key(key) {
+            match list_event {
+                ListEvent::Quit => {
+                    return Some(PortForwardPopupAction::Quit);
+                }
+                ListEvent::SelectedItem(item) => {
+                    self.port = item.port.to_string();
+                    self.selected_container = Some(item);
+                }
+            };
+        }
 
         None
-    }
-
-    fn select_next(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == self.pod_containers.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-
-        self.state.select(Some(i));
-    }
-
-    fn select_prev(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.pod_containers.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => self.pod_containers.len() - 1,
-        };
-
-        self.state.select(Some(i));
     }
 }

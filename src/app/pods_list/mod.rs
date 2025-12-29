@@ -170,6 +170,8 @@ impl PodsList {
                         app_port,
                         namespace: self.namespace.clone(),
                     });
+
+                    self.port_forward_popup = None;
                 }
 
                 PortForwardPopupAction::Quit => {

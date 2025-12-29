@@ -1,3 +1,7 @@
+mod filterable_list;
+
+pub use filterable_list::*;
+
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -26,7 +30,7 @@ pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
 
 pub const FOCUS_COLOR: Color = Color::Cyan;
 
-pub fn build_block(title: &str) -> Block {
+pub fn build_block(title: &'_ str) -> Block<'_> {
     Block::default()
         .title(title)
         .borders(Borders::ALL)
