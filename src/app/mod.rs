@@ -24,14 +24,14 @@ use crate::{
     kubectl::namespace,
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 enum ActiveWindow {
     Main(MainWindow),
     RecentNamespaces,
     RecentPortForwarding,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 enum MainWindow {
     Namespaces,
     Pods,
@@ -73,9 +73,17 @@ impl App {
         self.side_bar.draw(layouts[0], frame);
 
         match self.main_window {
-            MainWindow::Namespaces => self.namespaces.draw(layouts[1], frame),
+            MainWindow::Namespaces => self.namespaces.draw(
+                layouts[1],
+                frame,
+                self.active_window == ActiveWindow::Main(MainWindow::Namespaces),
+            ),
             MainWindow::Pods => match &mut self.pods {
-                Some(pods_list) => pods_list.draw(layouts[1], frame),
+                Some(pods_list) => pods_list.draw(
+                    layouts[1],
+                    frame,
+                    self.active_window == ActiveWindow::Main(MainWindow::Pods),
+                ),
                 None => self.main_window = MainWindow::Namespaces,
             },
         };

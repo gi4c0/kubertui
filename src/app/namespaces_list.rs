@@ -27,8 +27,8 @@ impl NamespacesList {
         }
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
-        self.namespace_list.draw(area, frame);
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+        self.namespace_list.draw(area, frame, is_focused);
     }
 
     pub fn update_list(&mut self, new_list: Vec<String>) {

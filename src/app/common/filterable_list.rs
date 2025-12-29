@@ -20,6 +20,7 @@ pub struct FilterableList<T> {
     filtered_list: Vec<usize>,
     filter: String,
     is_filter_mod: bool,
+    is_focused: bool,
 }
 
 impl<T> From<FilterableList<T>> for FilterableListCache<T> {
@@ -47,6 +48,14 @@ where
         self.update_filtered_list();
     }
 
+    pub fn focus(&mut self) {
+        self.is_focused = true;
+    }
+
+    pub fn unfocus(&mut self) {
+        self.is_focused = false;
+    }
+
     pub fn new(list_name: String, is_filterable: bool) -> Self {
         let mut state = ListState::default();
         state.select(Some(0));
@@ -57,6 +66,7 @@ where
             is_filter_mod: false,
             list: vec![],
             is_filterable,
+            is_focused: false,
             list_name,
             state,
         }
@@ -73,15 +83,21 @@ where
         self.state.select(Some(0));
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         let namespaces_list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
             .map(|index| ListItem::new(self.list[*index].as_ref()))
             .collect();
 
+        let mut block = build_block(self.list_name.as_str());
+
+        if !self.is_filter_mod && is_focused {
+            block = block.border_style(FOCUS_COLOR);
+        }
+
         let list = List::new(namespaces_list_items)
-            .block(build_block(self.list_name.as_str()))
+            .block(block)
             .highlight_style(get_highlight_style());
 
         if self.is_filter_mod || !self.filter.is_empty() {

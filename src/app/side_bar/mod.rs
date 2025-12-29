@@ -41,7 +41,8 @@ impl SideBar {
             .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
-        self.recent_namespaces.draw(layouts[0], frame);
+        // TODO: pass focus to side_bar
+        self.recent_namespaces.draw(layouts[0], frame, false);
         self.port_forwards.draw(layouts[1], frame);
     }
 }

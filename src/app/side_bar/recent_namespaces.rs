@@ -32,8 +32,8 @@ impl RecentNamespacesList {
         self.recent_namespaces_list.add_to_list(new_namespace);
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
-        self.recent_namespaces_list.draw(area, frame);
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+        self.recent_namespaces_list.draw(area, frame, is_focused);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) {

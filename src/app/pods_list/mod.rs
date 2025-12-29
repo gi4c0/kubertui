@@ -82,11 +82,11 @@ impl PodsList {
         })
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
-        self.draw_list(area, frame);
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+        self.draw_pod_table(area, frame, is_focused);
     }
 
-    fn draw_list(&mut self, area: Rect, frame: &mut Frame) {
+    fn draw_pod_table(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         let header = ["Name", "Containers"]
             .into_iter()
             .map(Cell::from)
@@ -116,6 +116,12 @@ impl PodsList {
             })
             .collect();
 
+        let mut block = build_block("Select pod");
+
+        if is_focused && !self.is_filter_mod {
+            block = block.border_style(FOCUS_COLOR);
+        }
+
         let table = Table::new(
             rows,
             [
@@ -124,7 +130,7 @@ impl PodsList {
             ],
         )
         .header(header)
-        .block(build_block("Select pod"))
+        .block(block)
         .row_highlight_style(get_highlight_style());
 
         if self.is_filter_mod || !self.filter.is_empty() {
