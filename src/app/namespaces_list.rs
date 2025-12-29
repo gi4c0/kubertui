@@ -32,7 +32,7 @@ impl NamespacesList {
     }
 
     pub fn update_list(&mut self, new_list: Vec<String>) {
-        self.namespace_list.update_list(new_list);
+        self.namespace_list.set_items(new_list);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) {

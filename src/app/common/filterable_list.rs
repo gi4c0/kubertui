@@ -17,7 +17,7 @@ pub struct FilterableList<T> {
     pub state: ListState,
     list_name: String,
     is_filterable: bool,
-    filtered_list: Vec<T>,
+    filtered_list: Vec<usize>,
     filter: String,
     is_filter_mod: bool,
 }
@@ -44,6 +44,7 @@ where
 {
     pub fn add_to_list(&mut self, new_item: Item) {
         self.list.push(new_item);
+        self.update_filtered_list();
     }
 
     pub fn new(list_name: String, is_filterable: bool) -> Self {
@@ -61,29 +62,22 @@ where
         }
     }
 
-    pub fn update_list(&mut self, new_list: Vec<Item>) {
+    pub fn set_items(&mut self, new_list: Vec<Item>) {
+        self.filtered_list = new_list
+            .iter()
+            .enumerate()
+            .map(|(index, _)| index)
+            .collect();
+
         self.list = new_list;
         self.state.select(Some(0));
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
-        self.filtered_list = self
-            .list
-            .iter()
-            .filter(|item| {
-                if self.filter.is_empty() {
-                    return true;
-                }
-
-                item.as_ref().contains(&self.filter)
-            })
-            .cloned()
-            .collect();
-
         let namespaces_list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
-            .map(|item| ListItem::new(item.as_ref()))
+            .map(|index| ListItem::new(self.list[*index].as_ref()))
             .collect();
 
         let list = List::new(namespaces_list_items)
@@ -127,6 +121,7 @@ where
                 }
                 KeyCode::Char(ch) => {
                     self.filter.push(ch);
+                    self.update_filtered_list();
                 }
                 _ => {}
             };
@@ -141,15 +136,30 @@ where
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Enter => {
-                return Some(ListEvent::SelectedItem(
-                    self.filtered_list[self.state.selected().unwrap_or(0)].clone(),
-                ));
+                let index = self.filtered_list[self.state.selected().unwrap_or(0)];
+                return Some(ListEvent::SelectedItem(self.list[index].clone()));
             }
             KeyCode::Char('q') => return Some(ListEvent::Quit),
             _ => {}
         };
 
         None
+    }
+
+    fn update_filtered_list(&mut self) {
+        self.filtered_list = self
+            .list
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| {
+                if self.filter.is_empty() {
+                    return true;
+                }
+
+                item.as_ref().contains(&self.filter)
+            })
+            .map(|(index, _)| index)
+            .collect();
     }
 
     fn select_next(&mut self) {
@@ -176,7 +186,7 @@ where
                     i - 1
                 }
             }
-            None => self.filtered_list.len() - 1,
+            None => 0,
         };
 
         self.state.select(Some(i));
