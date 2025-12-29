@@ -40,10 +40,10 @@ impl RecentNamespacesList {
         if let Some(list_event) = self.recent_namespaces_list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
-                    let _ = self.event_sender.send(AppEvent::Quit);
+                    self.event_sender.send(AppEvent::Quit);
                 }
                 ListEvent::SelectedItem(item) => {
-                    let _ = self.event_sender.send(AppEvent::SelectNamespace(item));
+                    self.event_sender.send(AppEvent::SelectNamespace(item));
                 }
             };
         }

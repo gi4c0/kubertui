@@ -18,11 +18,20 @@ pub enum AppEvent {
 }
 
 pub struct EventHandler {
-    sender: mpsc::UnboundedSender<AppEvent>,
+    sender: EventSender,
     receiver: mpsc::UnboundedReceiver<AppEvent>,
 }
 
-pub type EventSender = mpsc::UnboundedSender<AppEvent>;
+#[derive(Clone, Debug)]
+pub struct EventSender {
+    sender: mpsc::UnboundedSender<AppEvent>,
+}
+
+impl EventSender {
+    pub fn send(&self, message: AppEvent) {
+        let _ = self.sender.send(message);
+    }
+}
 
 impl EventHandler {
     pub fn new() -> Self {
@@ -31,7 +40,10 @@ impl EventHandler {
         let actor = EventTask::new(sender.clone());
         tokio::spawn(async { actor.run().await });
 
-        Self { sender, receiver }
+        Self {
+            sender: EventSender { sender },
+            receiver,
+        }
     }
 
     pub fn sender(&self) -> EventSender {

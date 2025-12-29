@@ -201,7 +201,7 @@ pub enum ListEvent<T> {
 pub fn handle_general_actions(key: KeyEvent, event_sender: &EventSender) -> bool {
     match key.code {
         KeyCode::Char('q') => {
-            let _ = event_sender.send(AppEvent::Quit);
+            event_sender.send(AppEvent::Quit);
             return true;
         }
         KeyCode::Char('g') => todo!(),

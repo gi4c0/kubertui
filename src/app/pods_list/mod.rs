@@ -164,7 +164,7 @@ impl PodsList {
                 } => {
                     let pod = self.filtered_list[self.state.selected().unwrap_or(0)].clone();
 
-                    let _ = self.event_sender.send(AppEvent::PortForward {
+                    self.event_sender.send(AppEvent::PortForward {
                         pod_name: pod.name,
                         local_port,
                         app_port,
@@ -203,7 +203,7 @@ impl PodsList {
 
         match key.code {
             KeyCode::Char('q') => {
-                let _ = self.event_sender.send(AppEvent::Quit);
+                self.event_sender.send(AppEvent::Quit);
             }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
