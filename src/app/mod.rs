@@ -19,7 +19,7 @@ use crate::{
         events::{AppEvent, EventHandler},
         namespaces_list::NamespacesList,
         pods_list::PodsList,
-        side_bar::{SideBar, port_forwards::PortForward},
+        side_bar::SideBar,
     },
     error::AppResult,
     kubectl::namespace,
@@ -130,14 +130,8 @@ impl App {
             } => {
                 self.side_bar
                     .port_forwards
-                    .add_to_list_and_port_forward(PortForward {
-                        pod_name,
-                        is_active: true,
-                        local_port,
-                        app_port,
-                        namespace,
-                    })
-                    .await;
+                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
+                    .await?;
             }
 
             AppEvent::ClosePodsList => {
@@ -145,6 +139,7 @@ impl App {
                 self.pods = None;
                 self.main_window = MainWindow::Namespaces;
             }
+            AppEvent::ShowNotification(log) => todo!(),
         }
 
         Ok(())
@@ -176,7 +171,9 @@ impl App {
             .pods
             .map(|pods_cache| PodsList::from_cache(pods_cache, self.event_handler.sender()));
 
-        self.side_bar = SideBar::from_cache(cache.side_bar, self.event_handler.sender());
+        self.side_bar = self
+            .side_bar
+            .from_cache(cache.side_bar, self.event_handler.sender());
     }
 }
 

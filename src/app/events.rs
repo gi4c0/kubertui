@@ -16,6 +16,13 @@ pub enum AppEvent {
         namespace: String,
     },
     ClosePodsList,
+    ShowNotification(Log),
+}
+
+pub enum Log {
+    Info(String),
+    Warning(String),
+    Error(String),
 }
 
 pub struct EventHandler {

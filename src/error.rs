@@ -5,6 +5,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AppError {
+    #[error("failed to forward ports")]
+    PortForwardError(Error),
+
     #[error("failed to save/retrieve cache")]
     CacheError(Error),
 
