@@ -1,6 +1,8 @@
 mod filterable_list;
+mod general_key_handler;
 
 pub use filterable_list::*;
+pub use general_key_handler::*;
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -30,11 +32,17 @@ pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
 
 pub const FOCUS_COLOR: Color = Color::Cyan;
 
-pub fn build_block(title: &'_ str) -> Block<'_> {
-    Block::default()
+pub fn build_block(title: &'_ str, is_focused: bool) -> Block<'_> {
+    let mut block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(BorderType::Rounded);
+
+    if is_focused {
+        block = block.border_style(FOCUS_COLOR);
+    }
+
+    block
 }
 
 pub fn get_highlight_style() -> Style {

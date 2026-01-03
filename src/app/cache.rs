@@ -7,14 +7,12 @@ use tokio::fs;
 use crate::{
     app::{ActiveWindow, App, MainWindow, side_bar::port_forwards::PortForward},
     error::{AppError, AppResult},
+    files::{CACHE_PATH, ensure_app_dir},
     kubectl::pods::{Pod, PodContainer},
 };
 
-const DIR_PATH: &str = "/tmp/kubertui";
-const FILE_PATH: &str = "/tmp/kubertui/cache.json";
-
 pub async fn save_cache(app: &App) -> AppResult<()> {
-    ensure_dir().await?;
+    ensure_app_dir().await?;
 
     let cache_payload = AppCache {
         namespaces: app.namespaces.clone().into(),
@@ -28,7 +26,7 @@ pub async fn save_cache(app: &App) -> AppResult<()> {
         .context("failed to serialize cache")
         .map_err(AppError::CacheError)?;
 
-    fs::write(FILE_PATH, json)
+    fs::write(CACHE_PATH, json)
         .await
         .context("failed to write json cache to file")
         .map_err(AppError::CacheError)?;
@@ -37,7 +35,7 @@ pub async fn save_cache(app: &App) -> AppResult<()> {
 }
 
 pub async fn read_cache() -> Option<AppCache> {
-    let content = match fs::read(FILE_PATH).await {
+    let content = match fs::read(CACHE_PATH).await {
         Ok(content) => content,
         Err(err) => {
             if err.kind() == ErrorKind::NotFound {
@@ -55,15 +53,6 @@ pub async fn read_cache() -> Option<AppCache> {
 
     let cache: Option<AppCache> = serde_json::from_slice(&content).ok();
     cache
-}
-
-async fn ensure_dir() -> AppResult<()> {
-    fs::create_dir_all(DIR_PATH)
-        .await
-        .with_context(|| format!("failed to create cache dir: {DIR_PATH}"))
-        .map_err(AppError::CacheError)?;
-
-    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,6 +1,6 @@
 use crate::app::{
     cache::NamespacesListCache,
-    common::{FilterableList, ListEvent},
+    common::{FilterableList, ListEvent, handle_general_keys},
     events::{AppEvent, EventSender},
 };
 use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
@@ -50,5 +50,7 @@ impl NamespacesList {
                 }
             };
         }
+
+        handle_general_keys(key, &self.event_sender);
     }
 }

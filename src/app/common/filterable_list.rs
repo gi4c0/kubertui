@@ -7,8 +7,7 @@ use ratatui::{
 
 use crate::app::{
     cache::{FilterableListCache, StateCache},
-    common::{FOCUS_COLOR, build_block, get_highlight_style},
-    events::{AppEvent, EventSender},
+    common::{build_block, get_highlight_style},
 };
 
 #[derive(Default, Debug, Clone)]
@@ -97,11 +96,7 @@ where
             .map(|index| ListItem::new(self.list[*index].as_ref()))
             .collect();
 
-        let mut block = build_block(self.list_name.as_str());
-
-        if !self.is_filter_mod && is_focused {
-            block = block.border_style(FOCUS_COLOR);
-        }
+        let block = build_block(self.list_name.as_str(), !self.is_filterable && is_focused);
 
         let list = List::new(namespaces_list_items)
             .block(block)
@@ -113,11 +108,7 @@ where
                 .constraints(vec![Constraint::Length(3), Constraint::Min(1)])
                 .split(area);
 
-            let mut block = build_block("Filter");
-
-            if self.is_filter_mod {
-                block = block.border_style(FOCUS_COLOR);
-            }
+            let block = build_block("Filter", self.is_filter_mod);
 
             let filter_widget = Paragraph::new(self.filter.as_str()).block(block);
 
@@ -222,16 +213,4 @@ where
 pub enum ListEvent<T> {
     SelectedItem(T),
     Quit,
-}
-
-pub fn handle_general_actions(key: KeyEvent, event_sender: &EventSender) -> bool {
-    match key.code {
-        KeyCode::Char('q') => {
-            event_sender.send(AppEvent::Quit);
-            return true;
-        }
-        KeyCode::Char('g') => todo!(),
-        _ => {}
-    };
-    false
 }

@@ -3,10 +3,14 @@ use futures::{FutureExt, StreamExt};
 use ratatui::crossterm::{self, event::Event as CrosstermEvent};
 use tokio::sync::mpsc;
 
-use crate::error::{AppError, AppResult};
+use crate::{
+    app::ActiveWindow,
+    error::{AppError, AppResult},
+};
 
 pub enum AppEvent {
     Crossterm(CrosstermEvent),
+    Focus(ActiveWindow),
     Quit,
     SelectNamespace(String),
     PortForward {
@@ -19,6 +23,7 @@ pub enum AppEvent {
     ShowNotification(Log),
 }
 
+#[derive(Debug)]
 pub enum Log {
     Info(String),
     Warning(String),

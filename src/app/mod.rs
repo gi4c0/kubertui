@@ -1,4 +1,4 @@
-mod cache;
+pub mod cache;
 mod common;
 mod events;
 mod namespaces_list;
@@ -28,8 +28,13 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 enum ActiveWindow {
     Main(MainWindow),
+    SideBar(SideBarWindow),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+enum SideBarWindow {
     RecentNamespaces,
-    RecentPortForwarding,
+    RecentPortForwards,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -77,7 +82,12 @@ impl App {
             .constraints(vec![Constraint::Percentage(25), Constraint::Percentage(75)])
             .split(frame.area());
 
-        self.side_bar.draw(layouts[0], frame);
+        let side_bar_focus = match self.active_window {
+            ActiveWindow::SideBar(w) => Some(w),
+            _ => None,
+        };
+
+        self.side_bar.draw(layouts[0], frame, side_bar_focus);
 
         match self.main_window {
             MainWindow::Namespaces => self.namespaces.draw(
@@ -131,7 +141,7 @@ impl App {
                 self.side_bar
                     .port_forwards
                     .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
-                    .await?;
+                    .await;
             }
 
             AppEvent::ClosePodsList => {
@@ -139,7 +149,11 @@ impl App {
                 self.pods = None;
                 self.main_window = MainWindow::Namespaces;
             }
-            AppEvent::ShowNotification(log) => todo!(),
+            AppEvent::ShowNotification(log) => {
+                // TODO: Implement notifications
+                panic!("{:?}", log);
+            }
+            AppEvent::Focus(active_window) => self.active_window = active_window,
         }
 
         Ok(())
@@ -155,8 +169,14 @@ impl App {
                     }
                 }
             },
-            ActiveWindow::RecentNamespaces => {}
-            ActiveWindow::RecentPortForwarding => {}
+            ActiveWindow::SideBar(side_bar) => match side_bar {
+                SideBarWindow::RecentNamespaces => {
+                    self.side_bar.recent_namespaces.handle_key_event(key)
+                }
+                SideBarWindow::RecentPortForwards => {
+                    self.side_bar.port_forwards.handle_key_event(key)
+                }
+            },
         }
     }
 

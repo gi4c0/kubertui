@@ -11,9 +11,8 @@ use ratatui::{
 
 use crate::{
     app::{
-        ActiveWindow, App, MainWindow,
         cache::{PodsListCache, StateCache},
-        common::{FOCUS_COLOR, build_block, get_highlight_style},
+        common::{build_block, get_highlight_style, handle_general_keys},
         events::{AppEvent, EventSender},
         pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
     },
@@ -136,11 +135,7 @@ impl PodsList {
             })
             .collect();
 
-        let mut block = build_block("Select pod");
-
-        if is_focused && !self.is_filter_mod {
-            block = block.border_style(FOCUS_COLOR);
-        }
+        let block = build_block("Select pod", is_focused && !self.is_filter_mod);
 
         let table = Table::new(
             rows,
@@ -159,12 +154,7 @@ impl PodsList {
                 .constraints(vec![Constraint::Length(3), Constraint::Min(1)])
                 .split(area);
 
-            let mut block = build_block("Filter");
-
-            if self.is_filter_mod {
-                block = block.border_style(FOCUS_COLOR);
-            }
-
+            let block = build_block("Filter", self.is_filter_mod);
             let filter_widget = Paragraph::new(self.filter.as_str()).block(block);
 
             frame.render_widget(filter_widget, layouts[0]);
@@ -243,7 +233,9 @@ impl PodsList {
             }
             KeyCode::Esc => self.event_sender.send(AppEvent::ClosePodsList),
             _ => {}
-        }
+        };
+
+        handle_general_keys(key, &self.event_sender);
     }
 
     fn select_next(&mut self) {

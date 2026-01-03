@@ -2,7 +2,7 @@ use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 
 use crate::app::{
     cache::RecentNamespacesListCache,
-    common::{FilterableList, ListEvent},
+    common::{FilterableList, ListEvent, handle_general_keys},
     events::{AppEvent, EventSender},
 };
 
@@ -66,5 +66,8 @@ impl RecentNamespacesList {
                 }
             };
         }
+
+        // TODO: handle highlight borders on focused windows
+        handle_general_keys(key, &self.event_sender);
     }
 }

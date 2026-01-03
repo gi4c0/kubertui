@@ -1,5 +1,6 @@
 mod app;
 mod error;
+mod files;
 mod kubectl;
 
 use crate::{app::App, error::AppResult};

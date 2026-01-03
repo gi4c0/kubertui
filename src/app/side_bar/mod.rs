@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::app::{
+    SideBarWindow,
     cache::SideBarCache,
     events::EventSender,
     side_bar::{port_forwards::PortForwardsList, recent_namespaces::RecentNamespacesList},
@@ -48,14 +49,22 @@ impl SideBar {
         }
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame, focus: Option<SideBarWindow>) {
         let layouts = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
-        // TODO: pass focus to side_bar
-        self.recent_namespaces.draw(layouts[0], frame, false);
-        self.port_forwards.draw(layouts[1], frame);
+        self.recent_namespaces.draw(
+            layouts[0],
+            frame,
+            focus == Some(SideBarWindow::RecentNamespaces),
+        );
+
+        self.port_forwards.draw(
+            layouts[1],
+            frame,
+            focus == Some(SideBarWindow::RecentPortForwards),
+        );
     }
 }

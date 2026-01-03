@@ -8,7 +8,7 @@ use ratatui::{
 use crate::{
     app::{
         cache::PortForwardPopupCache,
-        common::{FOCUS_COLOR, FilterableList, ListEvent, build_block, centered_rect},
+        common::{FilterableList, ListEvent, build_block, centered_rect},
     },
     kubectl::pods::PodContainer,
 };
@@ -75,9 +75,7 @@ impl PortForwardPopup {
     pub fn draw(&mut self, frame: &mut Frame) {
         if let Some(container) = &self.selected_container {
             let title = &format!("Forward to {}:{}", container.name.as_str(), container.port);
-            let block = build_block(title.as_str())
-                .title_alignment(Alignment::Center)
-                .border_style(FOCUS_COLOR);
+            let block = build_block(title.as_str(), true).title_alignment(Alignment::Center);
 
             let enter_port_widget = Paragraph::new(self.port.as_str()).block(block);
             let area = centered_rect(frame.area(), 30, 3);

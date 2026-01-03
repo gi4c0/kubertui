@@ -17,7 +17,6 @@ use crate::{
         common::{build_block, get_highlight_style},
         events::{AppEvent, EventSender, Log},
     },
-    error::AppResult,
     kubectl,
 };
 
@@ -133,27 +132,31 @@ impl PortForwardsList {
         pod_name: String,
         local_port: u16,
         app_port: u16,
-    ) -> AppResult<()> {
-        let pid = kubectl::start_port_forward(
+    ) {
+        match kubectl::start_port_forward(
             namespace.as_str(),
             pod_name.as_str(),
             local_port,
             app_port,
         )
-        .await?;
-
-        self.add_to_list(PortForward {
-            pid: Some(pid),
-            namespace,
-            app_port,
-            local_port,
-            pod_name,
-        });
-
-        Ok(())
+        .await
+        {
+            Ok(pid) => {
+                self.add_to_list(PortForward {
+                    pid: Some(pid),
+                    namespace,
+                    app_port,
+                    local_port,
+                    pod_name,
+                });
+            }
+            Err(err) => self
+                .event_sender
+                .send(AppEvent::ShowNotification(Log::Error(err.to_string()))),
+        };
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         let namespaces_list_items: Vec<ListItem> = self
             .list
             .iter()
@@ -171,8 +174,10 @@ impl PortForwardsList {
             })
             .collect();
 
+        let block = build_block("Port Forwards", is_focused);
+
         let list = List::new(namespaces_list_items)
-            .block(build_block("Port Forwards"))
+            .block(block)
             .highlight_style(get_highlight_style());
 
         frame.render_stateful_widget(list, area, &mut self.state);
