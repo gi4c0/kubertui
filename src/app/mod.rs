@@ -2,6 +2,7 @@ pub mod cache;
 mod common;
 mod events;
 mod namespaces_list;
+mod notification;
 mod pods_list;
 mod side_bar;
 
@@ -18,6 +19,7 @@ use crate::{
         cache::AppCache,
         events::{AppEvent, EventHandler},
         namespaces_list::NamespacesList,
+        notification::NotificationWidget,
         pods_list::PodsList,
         side_bar::SideBar,
     },
@@ -26,19 +28,19 @@ use crate::{
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-enum ActiveWindow {
+pub enum ActiveWindow {
     Main(MainWindow),
     SideBar(SideBarWindow),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-enum SideBarWindow {
+pub enum SideBarWindow {
     RecentNamespaces,
     RecentPortForwards,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-enum MainWindow {
+pub enum MainWindow {
     Namespaces,
     Pods,
 }
@@ -51,6 +53,7 @@ pub struct App {
     main_window: MainWindow,
     active_window: ActiveWindow,
     event_handler: EventHandler,
+    notification: Option<NotificationWidget>,
 }
 
 impl App {
@@ -104,6 +107,10 @@ impl App {
                 None => self.main_window = MainWindow::Namespaces,
             },
         };
+
+        if let Some(notification) = &mut self.notification {
+            notification.draw(frame);
+        }
     }
 
     async fn handle_events(&mut self) -> AppResult<()> {
@@ -149,17 +156,31 @@ impl App {
                 self.pods = None;
                 self.main_window = MainWindow::Namespaces;
             }
-            AppEvent::ShowNotification(log) => {
-                // TODO: Implement notifications
-                panic!("{:?}", log);
+            AppEvent::ShowNotification(notification) => {
+                self.notification = Some(NotificationWidget::new(
+                    notification,
+                    self.event_handler.sender(),
+                ))
             }
-            AppEvent::Focus(active_window) => self.active_window = active_window,
+            AppEvent::HideNotification => self.notification = None,
+            AppEvent::Focus(active_window) => {
+                self.active_window = match active_window {
+                    ActiveWindow::SideBar(side_bar) => ActiveWindow::SideBar(side_bar),
+                    // A little hack since we don't know what is the active window at the moment of the call
+                    ActiveWindow::Main(_) => ActiveWindow::Main(self.main_window),
+                }
+            }
         }
 
         Ok(())
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) {
+        if let Some(notification) = &mut self.notification {
+            notification.handle_key_event(key);
+            return;
+        }
+
         match &self.active_window {
             ActiveWindow::Main(main) => match main {
                 MainWindow::Namespaces => self.namespaces.handle_key_event(key),
@@ -208,6 +229,7 @@ impl Default for App {
             side_bar: SideBar::new(event_handler.sender()),
             exit: false,
             event_handler,
+            notification: None,
             pods: None,
         }
     }

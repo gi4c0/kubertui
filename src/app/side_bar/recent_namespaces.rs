@@ -67,7 +67,6 @@ impl RecentNamespacesList {
             };
         }
 
-        // TODO: handle highlight borders on focused windows
         handle_general_keys(key, &self.event_sender);
     }
 }

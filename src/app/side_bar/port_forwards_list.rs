@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         cache::{PortForwardsListCache, StateCache},
-        common::{build_block, get_highlight_style},
-        events::{AppEvent, EventSender, Log},
+        common::{build_block, get_highlight_style, handle_general_keys},
+        events::{AppEvent, EventSender},
+        notification::{LogLevel, Notification},
     },
     kubectl,
 };
@@ -100,7 +101,10 @@ impl PortForwardsList {
             Ok(output) => output,
             Err(err) => {
                 self.event_sender
-                    .send(AppEvent::ShowNotification(Log::Warning(err.to_string())));
+                    .send(AppEvent::ShowNotification(Notification::new(
+                        LogLevel::Warning,
+                        err.to_string(),
+                    )));
                 return false;
             }
         };
@@ -113,7 +117,10 @@ impl PortForwardsList {
         let error_output = String::from_utf8_lossy(&output.stderr).to_string();
 
         self.event_sender
-            .send(AppEvent::ShowNotification(Log::Warning(error_output)));
+            .send(AppEvent::ShowNotification(Notification::new(
+                LogLevel::Warning,
+                error_output,
+            )));
 
         false
     }
@@ -152,7 +159,10 @@ impl PortForwardsList {
             }
             Err(err) => self
                 .event_sender
-                .send(AppEvent::ShowNotification(Log::Error(err.to_string()))),
+                .send(AppEvent::ShowNotification(Notification::new(
+                    LogLevel::Error,
+                    err.to_string(),
+                ))),
         };
     }
 
@@ -194,7 +204,9 @@ impl PortForwardsList {
                 }
             }
             _ => {}
-        }
+        };
+
+        handle_general_keys(key, &self.event_sender);
     }
 
     fn select_next(&mut self) {

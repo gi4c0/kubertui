@@ -1,4 +1,4 @@
-pub mod port_forwards;
+pub mod port_forwards_list;
 mod recent_namespaces;
 
 use ratatui::{
@@ -10,7 +10,7 @@ use crate::app::{
     SideBarWindow,
     cache::SideBarCache,
     events::EventSender,
-    side_bar::{port_forwards::PortForwardsList, recent_namespaces::RecentNamespacesList},
+    side_bar::{port_forwards_list::PortForwardsList, recent_namespaces::RecentNamespacesList},
 };
 
 #[derive(Clone, Debug)]

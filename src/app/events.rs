@@ -4,7 +4,7 @@ use ratatui::crossterm::{self, event::Event as CrosstermEvent};
 use tokio::sync::mpsc;
 
 use crate::{
-    app::ActiveWindow,
+    app::{ActiveWindow, notification::Notification},
     error::{AppError, AppResult},
 };
 
@@ -20,14 +20,8 @@ pub enum AppEvent {
         namespace: String,
     },
     ClosePodsList,
-    ShowNotification(Log),
-}
-
-#[derive(Debug)]
-pub enum Log {
-    Info(String),
-    Warning(String),
-    Error(String),
+    ShowNotification(Notification),
+    HideNotification,
 }
 
 pub struct EventHandler {

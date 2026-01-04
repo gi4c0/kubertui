@@ -96,7 +96,7 @@ where
             .map(|index| ListItem::new(self.list[*index].as_ref()))
             .collect();
 
-        let block = build_block(self.list_name.as_str(), !self.is_filterable && is_focused);
+        let block = build_block(self.list_name.as_str(), !self.is_filter_mod && is_focused);
 
         let list = List::new(namespaces_list_items)
             .block(block)
