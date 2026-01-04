@@ -4,10 +4,12 @@ use tokio::process::Command;
 
 use crate::error::{AppError, AppResult};
 
+mod kill_process;
 pub mod namespace;
 pub mod pods;
 mod port_forward;
 
+pub use kill_process::*;
 pub use port_forward::*;
 
 async fn run_kubectl_command<T: for<'a> Deserialize<'a>>(

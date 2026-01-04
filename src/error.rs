@@ -5,6 +5,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AppError {
+    #[error("failed to kill process: {0}")]
+    KillProcess(Error),
+
     #[error("failed to forward ports: {0}")]
     PortForwardError(Error),
 

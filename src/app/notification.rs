@@ -28,6 +28,27 @@ impl Notification {
     pub fn new(level: LogLevel, message: String) -> Self {
         Self { level, message }
     }
+
+    pub fn info(message: String) -> Self {
+        Self {
+            level: LogLevel::Info,
+            message,
+        }
+    }
+
+    pub fn warn(message: String) -> Self {
+        Self {
+            level: LogLevel::Warning,
+            message,
+        }
+    }
+
+    pub fn error(message: String) -> Self {
+        Self {
+            level: LogLevel::Error,
+            message,
+        }
+    }
 }
 
 pub struct NotificationWidget {

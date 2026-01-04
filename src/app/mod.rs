@@ -131,8 +131,8 @@ impl App {
                     .add_to_list(new_namespace.clone());
 
                 self.pods = Some(
-                    PodsList::new(self.event_handler.sender())
-                        .load_by_namespace(new_namespace)
+                    PodsList::new(self.event_handler.sender(), new_namespace)
+                        .load()
                         .await?,
                 );
 

@@ -68,8 +68,8 @@ impl PodsList {
         }
     }
 
-    pub async fn load_by_namespace(mut self, namespace: String) -> AppResult<Self> {
-        let pods = get_pods_list(namespace.as_str()).await?;
+    pub async fn load(mut self) -> AppResult<Self> {
+        let pods = get_pods_list(self.namespace.as_str()).await?;
 
         let longest_name = pods
             .iter()
@@ -84,13 +84,13 @@ impl PodsList {
         Ok(self)
     }
 
-    pub fn new(event_sender: EventSender) -> Self {
+    pub fn new(event_sender: EventSender, namespace: String) -> Self {
         let mut state = TableState::default();
         state.select(Some(0));
 
         Self {
             filtered_list: Vec::new(),
-            namespace: String::new(),
+            namespace,
             longest_name: 0,
             original_list: Vec::new(),
             event_sender,

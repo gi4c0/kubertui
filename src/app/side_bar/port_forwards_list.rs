@@ -5,7 +5,7 @@ use ratatui::{
     Frame,
     crossterm::event::KeyEvent,
     layout::Rect,
-    style::{Color, Style},
+    style::{Color, Style, Stylize},
     text::Span,
     widgets::{List, ListItem, ListState},
 };
@@ -188,7 +188,7 @@ impl PortForwardsList {
 
         let list = List::new(namespaces_list_items)
             .block(block)
-            .highlight_style(get_highlight_style());
+            .highlight_style(Style::default().underlined());
 
         frame.render_stateful_widget(list, area, &mut self.state);
     }
@@ -197,8 +197,8 @@ impl PortForwardsList {
         match key.code {
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
-            KeyCode::Char('p') | KeyCode::Enter => todo!(),
-            KeyCode::Char('d') => {
+            KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => self.toggle_port_forward(),
+            KeyCode::Char('d') | KeyCode::Backspace => {
                 if let Some(selected) = self.state.selected() {
                     self.delete_item(selected);
                 }
@@ -207,6 +207,29 @@ impl PortForwardsList {
         };
 
         handle_general_keys(key, &self.event_sender);
+    }
+
+    fn toggle_port_forward(&mut self) {
+        if let Some(selected) = self.state.selected() {
+            let pod = &mut self.list[selected];
+
+            if let Some(pid) = pod.pid {
+                if let Err(err) = kubectl::kill_process(pid) {
+                    self.event_sender
+                        .send(AppEvent::ShowNotification(Notification::error(
+                            err.to_string(),
+                        )));
+
+                    return;
+                }
+
+                pod.pid = None;
+                return;
+            }
+
+            // TODO: start port forward
+            todo!()
+        }
     }
 
     fn select_next(&mut self) {
