@@ -2,7 +2,8 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::Alignment,
-    widgets::Paragraph,
+    style::{Color, Stylize},
+    widgets::{Clear, Paragraph},
 };
 
 use crate::{
@@ -79,6 +80,7 @@ impl PortForwardPopup {
 
             let enter_port_widget = Paragraph::new(self.port.as_str()).block(block);
             let area = centered_rect(frame.area(), 30, 3);
+            frame.render_widget(Clear, area);
             frame.render_widget(enter_port_widget, area);
 
             return;

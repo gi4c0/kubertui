@@ -37,6 +37,7 @@ pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
             container_statuses: item
                 .status
                 .container_statuses
+                .unwrap_or(vec![])
                 .into_iter()
                 .map(|item| item.state)
                 .collect(),
@@ -48,6 +49,7 @@ pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
                     name: item.name,
                     port: item
                         .ports
+                        .unwrap_or(vec![])
                         .first()
                         .map(|port| port.container_port)
                         .unwrap_or(0),
@@ -77,7 +79,7 @@ struct Spec {
 #[derive(Deserialize)]
 struct Container {
     name: String,
-    ports: Vec<ContainerPort>,
+    ports: Option<Vec<ContainerPort>>,
 }
 
 #[derive(Deserialize)]
@@ -96,7 +98,8 @@ struct Metadata {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Status {
-    container_statuses: Vec<ContainerStatus>,
+    container_statuses: Option<Vec<ContainerStatus>>,
+    reason: Option<String>,
 }
 
 #[derive(Deserialize)]

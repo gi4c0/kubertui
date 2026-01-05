@@ -170,30 +170,32 @@ impl PodsList {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) {
-        if let Some(port_forward_popup) = &mut self.port_forward_popup
-            && let Some(port_forward_popup_action) = port_forward_popup.handle_key_event(key)
-        {
-            return match port_forward_popup_action {
-                PortForwardPopupAction::PortForward {
-                    local_port,
-                    app_port,
-                } => {
-                    let pod = self.filtered_list[self.state.selected().unwrap_or(0)].clone();
-
-                    self.event_sender.send(AppEvent::PortForward {
-                        pod_name: pod.name,
+        if let Some(port_forward_popup) = &mut self.port_forward_popup {
+            if let Some(port_forward_popup_action) = port_forward_popup.handle_key_event(key) {
+                return match port_forward_popup_action {
+                    PortForwardPopupAction::PortForward {
                         local_port,
                         app_port,
-                        namespace: self.namespace.clone(),
-                    });
+                    } => {
+                        let pod = self.filtered_list[self.state.selected().unwrap_or(0)].clone();
 
-                    self.port_forward_popup = None;
-                }
+                        self.event_sender.send(AppEvent::PortForward {
+                            pod_name: pod.name,
+                            local_port,
+                            app_port,
+                            namespace: self.namespace.clone(),
+                        });
 
-                PortForwardPopupAction::Quit => {
-                    self.port_forward_popup = None;
-                }
-            };
+                        self.port_forward_popup = None;
+                    }
+
+                    PortForwardPopupAction::Quit => {
+                        self.port_forward_popup = None;
+                    }
+                };
+            }
+
+            return;
         }
 
         if self.is_filter_mod {
@@ -282,10 +284,8 @@ fn get_status(statuses: &[PodStatus]) -> Cell<'_> {
         let statuses: Vec<String> = statuses
             .iter()
             .map(|status| match status {
-                PodStatus::Unknown(status) => {
-                    println!("{}", status);
-                    "❓".into()
-                }
+                PodStatus::Unknown(status) => "❓".into(),
+
                 PodStatus::Known(known_status) => match known_status {
                     KnownPodStatus::Running { started_at: _ } => "💚".into(),
                     KnownPodStatus::Terminated {

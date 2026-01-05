@@ -19,6 +19,7 @@ pub enum LogLevel {
     Error,
 }
 
+#[derive(Debug)]
 pub struct Notification {
     level: LogLevel,
     message: String,

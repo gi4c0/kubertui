@@ -116,11 +116,13 @@ impl PortForwardsList {
 
         let error_output = String::from_utf8_lossy(&output.stderr).to_string();
 
-        self.event_sender
-            .send(AppEvent::ShowNotification(Notification::new(
-                LogLevel::Warning,
-                error_output,
-            )));
+        if !error_output.is_empty() {
+            self.event_sender
+                .send(AppEvent::ShowNotification(Notification::new(
+                    LogLevel::Warning,
+                    error_output,
+                )));
+        }
 
         false
     }
