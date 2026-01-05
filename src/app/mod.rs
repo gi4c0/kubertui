@@ -117,7 +117,7 @@ impl App {
         match self.event_handler.next().await? {
             AppEvent::Crossterm(crossterm_event) => match crossterm_event {
                 Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                    self.handle_key_event(key_event)
+                    self.handle_key_event(key_event).await
                 }
                 _ => {}
             },
@@ -175,7 +175,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_key_event(&mut self, key: KeyEvent) {
+    async fn handle_key_event(&mut self, key: KeyEvent) {
         if let Some(notification) = &mut self.notification {
             notification.handle_key_event(key);
             return;
@@ -195,7 +195,7 @@ impl App {
                     self.side_bar.recent_namespaces.handle_key_event(key)
                 }
                 SideBarWindow::RecentPortForwards => {
-                    self.side_bar.port_forwards.handle_key_event(key)
+                    self.side_bar.port_forwards.handle_key_event(key).await
                 }
             },
         }

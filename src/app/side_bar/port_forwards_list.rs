@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         cache::{PortForwardsListCache, StateCache},
-        common::{build_block, get_highlight_style, handle_general_keys},
+        common::{build_block, handle_general_keys},
         events::{AppEvent, EventSender},
         notification::{LogLevel, Notification},
     },
@@ -140,30 +140,22 @@ impl PortForwardsList {
         local_port: u16,
         app_port: u16,
     ) {
-        match kubectl::start_port_forward(
-            namespace.as_str(),
-            pod_name.as_str(),
-            local_port,
-            app_port,
-        )
-        .await
+        if let Some(existing) = self.list.iter().find(|item| item.pod_name == pod_name)
+            && existing.pid.is_some()
         {
-            Ok(pid) => {
-                self.add_to_list(PortForward {
-                    pid: Some(pid),
-                    namespace,
-                    app_port,
-                    local_port,
-                    pod_name,
-                });
-            }
-            Err(err) => self
-                .event_sender
-                .send(AppEvent::ShowNotification(Notification::new(
-                    LogLevel::Error,
-                    err.to_string(),
-                ))),
+            return;
+        }
+
+        let mut pod = PortForward {
+            pid: None,
+            namespace,
+            app_port,
+            local_port,
+            pod_name,
         };
+
+        Self::port_forward(self.event_sender.clone(), &mut pod).await;
+        self.add_to_list(pod);
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
@@ -193,11 +185,13 @@ impl PortForwardsList {
         frame.render_stateful_widget(list, area, &mut self.state);
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
-            KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => self.toggle_port_forward(),
+            KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => {
+                self.toggle_port_forward().await
+            }
             KeyCode::Char('d') | KeyCode::Backspace => {
                 if let Some(selected) = self.state.selected() {
                     self.delete_item(selected);
@@ -206,10 +200,12 @@ impl PortForwardsList {
             _ => {}
         };
 
-        handle_general_keys(key, &self.event_sender);
+        if handle_general_keys(key, &self.event_sender) {
+            self.state.select(None);
+        }
     }
 
-    fn toggle_port_forward(&mut self) {
+    async fn toggle_port_forward(&mut self) {
         if let Some(selected) = self.state.selected() {
             let pod = &mut self.list[selected];
 
@@ -227,8 +223,24 @@ impl PortForwardsList {
                 return;
             }
 
-            // TODO: start port forward
-            todo!()
+            Self::port_forward(self.event_sender.clone(), pod).await;
+        }
+    }
+
+    async fn port_forward(event_sender: EventSender, pod: &mut PortForward) {
+        match kubectl::start_port_forward(
+            pod.namespace.as_str(),
+            pod.pod_name.as_str(),
+            pod.local_port,
+            pod.app_port,
+        )
+        .await
+        {
+            Ok(pid) => pod.pid = Some(pid),
+            Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::new(
+                LogLevel::Error,
+                err.to_string(),
+            ))),
         }
     }
 
