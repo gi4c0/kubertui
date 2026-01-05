@@ -29,7 +29,7 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum ActiveWindow {
-    Main(MainWindow),
+    Main,
     SideBar(SideBarWindow),
 }
 
@@ -93,17 +93,14 @@ impl App {
         self.side_bar.draw(layouts[0], frame, side_bar_focus);
 
         match self.main_window {
-            MainWindow::Namespaces => self.namespaces.draw(
-                layouts[1],
-                frame,
-                self.active_window == ActiveWindow::Main(MainWindow::Namespaces),
-            ),
+            MainWindow::Namespaces => {
+                self.namespaces
+                    .draw(layouts[1], frame, self.active_window == ActiveWindow::Main)
+            }
             MainWindow::Pods => match &mut self.pods {
-                Some(pods_list) => pods_list.draw(
-                    layouts[1],
-                    frame,
-                    self.active_window == ActiveWindow::Main(MainWindow::Pods),
-                ),
+                Some(pods_list) => {
+                    pods_list.draw(layouts[1], frame, self.active_window == ActiveWindow::Main)
+                }
                 None => self.main_window = MainWindow::Namespaces,
             },
         };
@@ -136,7 +133,7 @@ impl App {
                         .await?,
                 );
 
-                self.active_window = ActiveWindow::Main(MainWindow::Pods);
+                self.active_window = ActiveWindow::Main;
                 self.main_window = MainWindow::Pods;
             }
             AppEvent::PortForward {
@@ -152,7 +149,7 @@ impl App {
             }
 
             AppEvent::ClosePodsList => {
-                self.active_window = ActiveWindow::Main(MainWindow::Namespaces);
+                self.active_window = ActiveWindow::Main;
                 self.pods = None;
                 self.main_window = MainWindow::Namespaces;
             }
@@ -163,11 +160,29 @@ impl App {
                 ))
             }
             AppEvent::HideNotification => self.notification = None,
-            AppEvent::Focus(active_window) => {
-                self.active_window = match active_window {
-                    ActiveWindow::SideBar(side_bar) => ActiveWindow::SideBar(side_bar),
-                    // A little hack since we don't know what is the active window at the moment of the call
-                    ActiveWindow::Main(_) => ActiveWindow::Main(self.main_window),
+            AppEvent::Focus(active_window) => self.active_window = active_window,
+
+            AppEvent::FocusNext => {
+                self.active_window = match self.active_window {
+                    ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::RecentNamespaces),
+                    ActiveWindow::SideBar(side_bar) => match side_bar {
+                        SideBarWindow::RecentNamespaces => {
+                            ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
+                        }
+                        SideBarWindow::RecentPortForwards => ActiveWindow::Main,
+                    },
+                }
+            }
+
+            AppEvent::FocusPrev => {
+                self.active_window = match self.active_window {
+                    ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
+                    ActiveWindow::SideBar(side_bar) => match side_bar {
+                        SideBarWindow::RecentNamespaces => ActiveWindow::Main,
+                        SideBarWindow::RecentPortForwards => {
+                            ActiveWindow::SideBar(SideBarWindow::RecentNamespaces)
+                        }
+                    },
                 }
             }
         }
@@ -182,7 +197,7 @@ impl App {
         }
 
         match &self.active_window {
-            ActiveWindow::Main(main) => match main {
+            ActiveWindow::Main => match self.main_window {
                 MainWindow::Namespaces => self.namespaces.handle_key_event(key),
                 MainWindow::Pods => {
                     if let Some(pods) = &mut self.pods {
@@ -224,7 +239,7 @@ impl Default for App {
 
         Self {
             main_window: MainWindow::Namespaces,
-            active_window: ActiveWindow::Main(MainWindow::Namespaces),
+            active_window: ActiveWindow::Main,
             namespaces: NamespacesList::new(event_handler.sender()),
             side_bar: SideBar::new(event_handler.sender()),
             exit: false,

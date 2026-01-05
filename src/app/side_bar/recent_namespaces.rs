@@ -64,9 +64,12 @@ impl RecentNamespacesList {
                 ListEvent::SelectedItem(item) => {
                     self.event_sender.send(AppEvent::SelectNamespace(item));
                 }
+                ListEvent::StayInList => {}
             };
         }
 
-        handle_general_keys(key, &self.event_sender);
+        if handle_general_keys(key, &self.event_sender) {
+            self.recent_namespaces_list.state.select(None);
+        }
     }
 }

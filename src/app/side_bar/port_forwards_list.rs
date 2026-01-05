@@ -186,6 +186,11 @@ impl PortForwardsList {
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {
+        if handle_general_keys(key, &self.event_sender) {
+            self.state.select(None);
+            return;
+        }
+
         match key.code {
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
@@ -195,10 +200,6 @@ impl PortForwardsList {
             KeyCode::Char('d') | KeyCode::Backspace => self.delete_item(),
             _ => {}
         };
-
-        if handle_general_keys(key, &self.event_sender) {
-            self.state.select(None);
-        }
     }
 
     async fn toggle_port_forward(&mut self) {
@@ -253,6 +254,10 @@ impl PortForwardsList {
     }
 
     fn select_next(&mut self) {
+        if self.list.is_empty() {
+            return self.state.select(None);
+        }
+
         let i = match self.state.selected() {
             Some(i) => {
                 if i == self.list.len() - 1 {
@@ -268,6 +273,10 @@ impl PortForwardsList {
     }
 
     fn select_prev(&mut self) {
+        if self.list.is_empty() {
+            return self.state.select(None);
+        }
+
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {

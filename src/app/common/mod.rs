@@ -31,6 +31,7 @@ pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
 }
 
 pub const FOCUS_COLOR: Color = Color::Cyan;
+pub const BORDER_FOCUS_COLOR: Color = Color::LightYellow;
 
 pub fn build_block(title: &'_ str, is_focused: bool) -> Block<'_> {
     let mut block = Block::default()
@@ -39,7 +40,7 @@ pub fn build_block(title: &'_ str, is_focused: bool) -> Block<'_> {
         .border_type(BorderType::Rounded);
 
     if is_focused {
-        block = block.border_style(FOCUS_COLOR);
+        block = block.border_style(BORDER_FOCUS_COLOR);
     }
 
     block

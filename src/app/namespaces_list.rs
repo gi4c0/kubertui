@@ -48,7 +48,9 @@ impl NamespacesList {
                 ListEvent::SelectedItem(item) => {
                     self.event_sender.send(AppEvent::SelectNamespace(item));
                 }
+                ListEvent::StayInList => {}
             };
+            return;
         }
 
         handle_general_keys(key, &self.event_sender);

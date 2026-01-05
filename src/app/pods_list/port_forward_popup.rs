@@ -119,6 +119,7 @@ impl PortForwardPopup {
                     self.port = item.port.to_string();
                     self.selected_container = Some(item);
                 }
+                ListEvent::StayInList => {}
             };
         }
 

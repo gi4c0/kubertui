@@ -143,7 +143,7 @@ where
                 _ => {}
             };
 
-            return None;
+            return Some(ListEvent::StayInList);
         }
 
         match key.code {
@@ -180,6 +180,10 @@ where
     }
 
     fn select_next(&mut self) {
+        if self.filtered_list.is_empty() {
+            return self.state.select(None);
+        }
+
         let i = match self.state.selected() {
             Some(i) => {
                 if i == self.filtered_list.len() - 1 {
@@ -195,6 +199,10 @@ where
     }
 
     fn select_prev(&mut self) {
+        if self.filtered_list.is_empty() {
+            return self.state.select(None);
+        }
+
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -203,7 +211,7 @@ where
                     i - 1
                 }
             }
-            None => 0,
+            None => self.filtered_list.len() - 1,
         };
 
         self.state.select(Some(i));
@@ -213,4 +221,5 @@ where
 pub enum ListEvent<T> {
     SelectedItem(T),
     Quit,
+    StayInList,
 }

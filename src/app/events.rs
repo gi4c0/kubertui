@@ -11,6 +11,8 @@ use crate::{
 pub enum AppEvent {
     Crossterm(CrosstermEvent),
     Focus(ActiveWindow),
+    FocusNext,
+    FocusPrev,
     Quit,
     SelectNamespace(String),
     PortForward {

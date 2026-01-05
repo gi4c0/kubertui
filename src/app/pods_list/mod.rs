@@ -239,6 +239,10 @@ impl PodsList {
     }
 
     fn select_next(&mut self) {
+        if self.filtered_list.is_empty() {
+            return self.state.select(None);
+        }
+
         let i = match self.state.selected() {
             Some(i) => {
                 if i == self.filtered_list.len() - 1 {
@@ -254,6 +258,10 @@ impl PodsList {
     }
 
     fn select_prev(&mut self) {
+        if self.filtered_list.is_empty() {
+            return self.state.select(None);
+        }
+
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
