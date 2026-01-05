@@ -7,6 +7,7 @@ pub struct Pod {
     pub name: String,
     pub container_statuses: Vec<PodStatus>,
     pub containers: Vec<PodContainer>,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +35,7 @@ pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
         .into_iter()
         .map(|item| Pod {
             name: item.metadata.name,
+            reason: item.status.reason,
             container_statuses: item
                 .status
                 .container_statuses
@@ -119,11 +121,13 @@ pub enum PodStatus {
 pub enum KnownPodStatus {
     #[serde(rename_all = "camelCase")]
     Terminated {
-        container_id: String,
+        #[serde(rename = "containerID")]
+        container_id: Option<String>,
         exit_code: usize,
-        finished_at: String,
+        finished_at: Option<String>,
         reason: String,
-        started_at: String,
+        message: Option<String>,
+        started_at: Option<String>,
     },
     #[serde(rename_all = "camelCase")]
     Waiting {

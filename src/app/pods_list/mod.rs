@@ -20,6 +20,10 @@ use crate::{
     kubectl::pods::{KnownPodStatus, Pod, PodStatus, get_pods_list},
 };
 
+pub enum PodStatusEnum {
+    Terminated,
+}
+
 #[derive(Debug, Clone)]
 pub struct PodsList {
     original_list: Vec<Pod>,
@@ -130,7 +134,7 @@ impl PodsList {
             .map(|item| {
                 Row::new([
                     item.name.as_str().into(),
-                    get_status(&item.container_statuses),
+                    get_status(&item.container_statuses, &item.reason),
                 ])
             })
             .collect();
@@ -279,7 +283,7 @@ impl PodsList {
     }
 }
 
-fn get_status(statuses: &[PodStatus]) -> Cell<'_> {
+fn get_status<'a>(statuses: &'a [PodStatus], reason: &'a Option<String>) -> Cell<'a> {
     if statuses.len() <= 5 {
         let statuses: Vec<String> = statuses
             .iter()
@@ -294,6 +298,7 @@ fn get_status(statuses: &[PodStatus]) -> Cell<'_> {
                         finished_at: _,
                         reason: _,
                         started_at: _,
+                        message: _,
                     } => "💔".into(),
                     KnownPodStatus::Waiting {
                         reason: _,
@@ -302,6 +307,12 @@ fn get_status(statuses: &[PodStatus]) -> Cell<'_> {
                 },
             })
             .collect();
+
+        if statuses.is_empty()
+            && let Some(_reason) = reason
+        {
+            return Cell::from("❌");
+        }
 
         return Cell::from(statuses.join(" "));
     }
