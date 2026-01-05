@@ -14,7 +14,7 @@ use crate::{
     files::{ERROR_FILE_PATH, INFO_FILE_PATH, ensure_app_dir},
 };
 
-const TIME_OUT_SECONDS: u64 = 3;
+const TIME_OUT_SECONDS: u64 = 5;
 
 pub async fn start_port_forward(
     namespace: &str,

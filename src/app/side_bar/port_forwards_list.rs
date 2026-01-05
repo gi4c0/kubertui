@@ -192,11 +192,7 @@ impl PortForwardsList {
             KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => {
                 self.toggle_port_forward().await
             }
-            KeyCode::Char('d') | KeyCode::Backspace => {
-                if let Some(selected) = self.state.selected() {
-                    self.delete_item(selected);
-                }
-            }
+            KeyCode::Char('d') | KeyCode::Backspace => self.delete_item(),
             _ => {}
         };
 
@@ -207,23 +203,35 @@ impl PortForwardsList {
 
     async fn toggle_port_forward(&mut self) {
         if let Some(selected) = self.state.selected() {
-            let pod = &mut self.list[selected];
-
-            if let Some(pid) = pod.pid {
-                if let Err(err) = kubectl::kill_process(pid) {
-                    self.event_sender
-                        .send(AppEvent::ShowNotification(Notification::error(
-                            err.to_string(),
-                        )));
-
-                    return;
-                }
-
-                pod.pid = None;
+            if let Some(pid) = self.list[selected].pid {
+                self.stop_port_forward(pid);
+                self.list[selected].pid = None;
                 return;
             }
 
+            let pod = &mut self.list[selected];
             Self::port_forward(self.event_sender.clone(), pod).await;
+        }
+    }
+
+    fn delete_item(&mut self) {
+        if let Some(selected) = self.state.selected() {
+            let pod = &self.list[selected];
+
+            if let Some(pid) = pod.pid {
+                self.stop_port_forward(pid);
+            }
+
+            self.list.remove(selected);
+        }
+    }
+
+    fn stop_port_forward(&self, pid: u32) {
+        if let Err(err) = kubectl::kill_process(pid) {
+            self.event_sender
+                .send(AppEvent::ShowNotification(Notification::error(
+                    err.to_string(),
+                )));
         }
     }
 
@@ -257,10 +265,6 @@ impl PortForwardsList {
         };
 
         self.state.select(Some(i));
-    }
-
-    fn delete_item(&mut self, index: usize) {
-        todo!()
     }
 
     fn select_prev(&mut self) {
