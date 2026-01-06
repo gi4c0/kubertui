@@ -2,7 +2,7 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::{List, ListItem, ListState, Paragraph},
+    widgets::{Clear, List, ListItem, ListState, Paragraph},
 };
 
 use crate::app::{
@@ -90,7 +90,7 @@ where
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        let namespaces_list_items: Vec<ListItem> = self
+        let list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
             .map(|index| ListItem::new(self.list[*index].as_ref()))
@@ -98,7 +98,7 @@ where
 
         let block = build_block(self.list_name.as_str(), !self.is_filter_mod && is_focused);
 
-        let list = List::new(namespaces_list_items)
+        let list = List::new(list_items)
             .block(block)
             .highlight_style(get_highlight_style());
 
@@ -112,10 +112,16 @@ where
 
             let filter_widget = Paragraph::new(self.filter.as_str()).block(block);
 
+            for area in &*layouts {
+                frame.render_widget(Clear, *area);
+            }
+
             frame.render_widget(filter_widget, layouts[0]);
             frame.render_stateful_widget(list, layouts[1], &mut self.state);
             return;
         }
+
+        frame.render_widget(Clear, area);
         frame.render_stateful_widget(list, area, &mut self.state);
     }
 
@@ -152,6 +158,16 @@ where
             }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
+            KeyCode::Char('G') => {
+                if !self.filtered_list.is_empty() {
+                    self.state.select(Some(self.filtered_list.len() - 1));
+                }
+            }
+            KeyCode::Char('g') => {
+                if !self.filtered_list.is_empty() {
+                    self.state.select(Some(0));
+                }
+            }
             KeyCode::Enter => {
                 let index = self.filtered_list.get(self.state.selected().unwrap_or(0));
                 return index.map(|&index| ListEvent::SelectedItem(self.list[index].clone()));

@@ -8,6 +8,7 @@ pub struct Pod {
     pub container_statuses: Vec<PodStatus>,
     pub containers: Vec<PodContainer>,
     pub reason: Option<String>,
+    pub restart_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +37,14 @@ pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
         .map(|item| Pod {
             name: item.metadata.name,
             reason: item.status.reason,
+            restart_count: item
+                .status
+                .container_statuses
+                .as_ref()
+                .unwrap_or(&vec![])
+                .iter()
+                .map(|i| i.restart_count)
+                .sum(),
             container_statuses: item
                 .status
                 .container_statuses
@@ -105,8 +114,10 @@ struct Status {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ContainerStatus {
     state: PodStatus,
+    restart_count: usize,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -229,6 +229,16 @@ impl PodsList {
             }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
+            KeyCode::Char('G') => {
+                if !self.filtered_list.is_empty() {
+                    self.state.select(Some(self.filtered_list.len() - 1));
+                }
+            }
+            KeyCode::Char('g') => {
+                if !self.filtered_list.is_empty() {
+                    self.state.select(Some(0));
+                }
+            }
             KeyCode::Char('/') => self.is_filter_mod = true,
             KeyCode::Char('p') => {
                 let pod_containers = self.filtered_list[self.state.selected().unwrap_or(0)]
@@ -309,9 +319,14 @@ fn get_status<'a>(statuses: &'a [PodStatus], reason: &'a Option<String>) -> Cell
             .collect();
 
         if statuses.is_empty()
-            && let Some(_reason) = reason
+            && let Some(reason) = reason
         {
-            return Cell::from("❌");
+            let icon = match reason.as_str() {
+                "Evicted" => "❌".to_string(),
+                another => format!("❌ ({another})").to_string(),
+            };
+
+            return Cell::from(icon);
         }
 
         return Cell::from(statuses.join(" "));

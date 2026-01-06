@@ -2,7 +2,6 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::Alignment,
-    style::{Color, Stylize},
     widgets::{Clear, Paragraph},
 };
 
@@ -125,6 +124,9 @@ impl PortForwardPopup {
             };
         }
 
-        None
+        match key.code {
+            KeyCode::Esc => Some(PortForwardPopupAction::Quit),
+            _ => None,
+        }
     }
 }
