@@ -49,7 +49,7 @@ impl PortForwardPopup {
     const ALLOWED_CHARS: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
     pub fn containers_len(&self) -> usize {
-        self.pod_containers_list.list.len()
+        self.pod_containers_list.inner_list.len()
     }
 
     pub fn new(pod_containers: Vec<PodContainer>) -> Self {

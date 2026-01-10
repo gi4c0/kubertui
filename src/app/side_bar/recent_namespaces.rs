@@ -38,14 +38,14 @@ impl RecentNamespacesList {
     pub fn add_to_list(&mut self, new_namespace: String) {
         let existing_index = self
             .recent_namespaces_list
-            .list
+            .inner_list
             .iter()
             .position(|i| i == new_namespace.as_str());
 
         match existing_index {
             Some(existing_index) => {
-                self.recent_namespaces_list.list.remove(existing_index);
-                self.recent_namespaces_list.list.insert(0, new_namespace);
+                self.recent_namespaces_list.inner_list.remove(existing_index);
+                self.recent_namespaces_list.inner_list.insert(0, new_namespace);
             }
             None => self.recent_namespaces_list.append_to_list(new_namespace),
         };

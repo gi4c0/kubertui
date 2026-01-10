@@ -72,8 +72,7 @@ pub struct SideBarCache {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PortForwardsListCache {
-    pub list: Vec<PortForward>,
-    pub state: StateCache,
+    pub list: FilterableListCache<PortForward>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -2,17 +2,18 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::{Constraint, Direction, Layout, Rect},
+    style::{Style, Stylize},
     widgets::{Clear, List, ListItem, ListState, Paragraph},
 };
 
 use crate::app::{
     cache::{FilterableListCache, StateCache},
-    common::{build_block, get_highlight_style},
+    common::build_block,
 };
 
 #[derive(Default, Debug, Clone)]
 pub struct FilterableList<T> {
-    pub list: Vec<T>,
+    pub inner_list: Vec<T>,
     pub state: ListState,
     list_name: String,
     is_filterable: bool,
@@ -27,7 +28,7 @@ impl<T> From<FilterableList<T>> for FilterableListCache<T> {
             filter: value.filter,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
-            list: value.list,
+            list: value.inner_list,
             state: StateCache {
                 selected: value.state.selected(),
             },
@@ -46,7 +47,7 @@ impl<T> From<FilterableListCache<T>> for FilterableList<T> {
             filter: value.filter,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
-            list: value.list,
+            inner_list: value.list,
             state,
             is_filterable: value.is_filterable,
             list_name: value.list_name,
@@ -59,7 +60,7 @@ where
     Item: Clone + AsRef<str>,
 {
     pub fn append_to_list(&mut self, new_item: Item) {
-        self.list.insert(0, new_item);
+        self.inner_list.insert(0, new_item);
         self.update_filtered_list();
     }
 
@@ -71,7 +72,7 @@ where
             filter: String::new(),
             filtered_list: vec![],
             is_filter_mod: false,
-            list: vec![],
+            inner_list: vec![],
             is_filterable,
             list_name,
             state,
@@ -85,7 +86,7 @@ where
             .map(|(index, _)| index)
             .collect();
 
-        self.list = new_list;
+        self.inner_list = new_list;
         self.state.select(Some(0));
     }
 
@@ -93,14 +94,14 @@ where
         let list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
-            .map(|index| ListItem::new(self.list[*index].as_ref()))
+            .map(|index| ListItem::new(self.inner_list[*index].as_ref()))
             .collect();
 
         let block = build_block(self.list_name.as_str(), !self.is_filter_mod && is_focused);
 
         let list = List::new(list_items)
             .block(block)
-            .highlight_style(get_highlight_style());
+            .highlight_style(Style::default().underlined());
 
         if self.is_filter_mod || !self.filter.is_empty() {
             let layouts = Layout::default()
@@ -170,7 +171,7 @@ where
             }
             KeyCode::Enter => {
                 let index = self.filtered_list.get(self.state.selected().unwrap_or(0));
-                return index.map(|&index| ListEvent::SelectedItem(self.list[index].clone()));
+                return index.map(|&index| ListEvent::SelectedItem(self.inner_list[index].clone()));
             }
             KeyCode::Char('q') => return Some(ListEvent::Quit),
             _ => {}
@@ -181,7 +182,7 @@ where
 
     fn update_filtered_list(&mut self) {
         self.filtered_list = self
-            .list
+            .inner_list
             .iter()
             .enumerate()
             .filter(|(_, item)| {
@@ -234,6 +235,7 @@ where
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ListEvent<T> {
     SelectedItem(T),
     Quit,

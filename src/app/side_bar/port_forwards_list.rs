@@ -1,20 +1,13 @@
 use std::process::Command;
 
 use crossterm::event::KeyCode;
-use ratatui::{
-    Frame,
-    crossterm::event::KeyEvent,
-    layout::Rect,
-    style::{Color, Style, Stylize},
-    text::Span,
-    widgets::{List, ListItem, ListState},
-};
+use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, widgets::ListState};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
-        cache::{PortForwardsListCache, StateCache},
-        common::{build_block, handle_general_keys},
+        cache::PortForwardsListCache,
+        common::{FilterableList, ListEvent, handle_general_keys},
         events::{AppEvent, EventSender},
         notification::{LogLevel, Notification},
     },
@@ -23,27 +16,30 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct PortForwardsList {
-    list: Vec<PortForward>,
-    state: ListState,
+    list: FilterableList<PortForward>,
     event_sender: EventSender,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PortForward {
-    pub namespace: String,
-    pub pod_name: String,
-    pub local_port: u16,
-    pub app_port: u16,
-    pub pid: Option<u32>,
+    namespace: String,
+    pod_name: String,
+    local_port: u16,
+    app_port: u16,
+    pid: Option<u32>,
+    item_str: String,
+}
+
+impl AsRef<str> for PortForward {
+    fn as_ref(&self) -> &str {
+        &self.item_str
+    }
 }
 
 impl From<PortForwardsList> for PortForwardsListCache {
     fn from(value: PortForwardsList) -> Self {
         Self {
-            list: value.list,
-            state: StateCache {
-                selected: value.state.selected(),
-            },
+            list: value.list.into(),
         }
     }
 }
@@ -55,8 +51,7 @@ impl PortForwardsList {
 
         Self {
             event_sender,
-            list: vec![],
-            state,
+            list: FilterableList::new("Recent Port Forwards".to_string(), true),
         }
     }
 
@@ -66,31 +61,30 @@ impl PortForwardsList {
         event_sender: EventSender,
     ) -> Self {
         let mut state = ListState::default();
-        state.select(value.state.selected);
+        state.select(value.list.state.selected);
 
-        Self {
-            list: value
-                .list
-                .into_iter()
-                .map(|item| {
-                    if let Some(pid) = item.pid {
-                        let is_active_port_forward = self.check_pid(pid);
+        let mut list: FilterableList<PortForward> = value.list.into();
+        list.inner_list = list
+            .inner_list
+            .into_iter()
+            .map(|item| {
+                if let Some(pid) = item.pid {
+                    let is_active_port_forward = self.check_pid(pid);
 
-                        let pid = if is_active_port_forward {
-                            Some(pid)
-                        } else {
-                            None
-                        };
+                    let pid = if is_active_port_forward {
+                        Some(pid)
+                    } else {
+                        None
+                    };
 
-                        return PortForward { pid, ..item };
-                    }
+                    return PortForward { pid, ..item };
+                }
 
-                    item
-                })
-                .collect(),
-            state,
-            event_sender,
-        }
+                item
+            })
+            .collect();
+
+        Self { list, event_sender }
     }
 
     fn check_pid(&self, pid: u32) -> bool {
@@ -129,9 +123,9 @@ impl PortForwardsList {
 
     pub fn add_to_list(&mut self, new_item: PortForward) {
         if new_item.pid.is_some() {
-            self.list.insert(0, new_item);
+            self.list.inner_list.insert(0, new_item);
         } else {
-            self.list.push(new_item);
+            self.list.inner_list.push(new_item);
         }
     }
 
@@ -142,7 +136,11 @@ impl PortForwardsList {
         local_port: u16,
         app_port: u16,
     ) {
-        if let Some(existing) = self.list.iter().find(|item| item.pod_name == pod_name)
+        if let Some(existing) = self
+            .list
+            .inner_list
+            .iter()
+            .find(|item| item.pod_name == pod_name)
             && existing.pid.is_some()
         {
             return;
@@ -153,6 +151,7 @@ impl PortForwardsList {
             namespace,
             app_port,
             local_port,
+            item_str: format!("{} -> {local_port} {app_port}", pod_name),
             pod_name,
         };
 
@@ -161,41 +160,24 @@ impl PortForwardsList {
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        let namespaces_list_items: Vec<ListItem> = self
-            .list
-            .iter()
-            .map(|item| {
-                let mut span = Span::from(format!(
-                    "{} {} -> {}",
-                    item.pod_name, item.local_port, item.app_port
-                ));
-
-                if item.pid.is_some() {
-                    span = span.style(Style::default().fg(Color::Green));
-                }
-
-                ListItem::new(span)
-            })
-            .collect();
-
-        let block = build_block("Port Forwards", is_focused);
-
-        let list = List::new(namespaces_list_items)
-            .block(block)
-            .highlight_style(Style::default().underlined());
-
-        frame.render_stateful_widget(list, area, &mut self.state);
+        self.list.draw(area, frame, is_focused);
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {
         if handle_general_keys(key, &self.event_sender) {
-            self.state.select(None);
+            self.list.state.select(None);
+            return;
+        }
+
+        // Handle inner_list keys
+        if let Some(event) = self.list.handle_key(key)
+            && event == ListEvent::Quit
+        {
+            self.event_sender.send(AppEvent::Quit);
             return;
         }
 
         match key.code {
-            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => {
                 self.toggle_port_forward().await
             }
@@ -205,27 +187,27 @@ impl PortForwardsList {
     }
 
     async fn toggle_port_forward(&mut self) {
-        if let Some(selected) = self.state.selected() {
-            if let Some(pid) = self.list[selected].pid {
+        if let Some(selected) = self.list.state.selected() {
+            if let Some(pid) = self.list.inner_list[selected].pid {
                 self.stop_port_forward(pid);
-                self.list[selected].pid = None;
+                self.list.inner_list[selected].pid = None;
                 return;
             }
 
-            let pod = &mut self.list[selected];
+            let pod = &mut self.list.inner_list[selected];
             Self::port_forward(self.event_sender.clone(), pod).await;
         }
     }
 
     fn delete_item(&mut self) {
-        if let Some(selected) = self.state.selected() {
-            let pod = &self.list[selected];
+        if let Some(selected) = self.list.state.selected() {
+            let pod = &self.list.inner_list[selected];
 
             if let Some(pid) = pod.pid {
                 self.stop_port_forward(pid);
             }
 
-            self.list.remove(selected);
+            self.list.inner_list.remove(selected);
         }
     }
 
@@ -253,43 +235,5 @@ impl PortForwardsList {
                 err.to_string(),
             ))),
         }
-    }
-
-    fn select_next(&mut self) {
-        if self.list.is_empty() {
-            return self.state.select(None);
-        }
-
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == self.list.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-
-        self.state.select(Some(i));
-    }
-
-    fn select_prev(&mut self) {
-        if self.list.is_empty() {
-            return self.state.select(None);
-        }
-
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.list.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => self.list.len() - 1,
-        };
-
-        self.state.select(Some(i));
     }
 }
