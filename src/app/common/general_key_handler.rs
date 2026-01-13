@@ -9,7 +9,7 @@ pub fn handle_general_keys(key: KeyEvent, event_sender: &EventSender) -> bool {
     match key.code {
         KeyCode::Char('q') => event_sender.send(AppEvent::Quit),
         KeyCode::Char('1') => event_sender.send(AppEvent::Focus(ActiveWindow::SideBar(
-            SideBarWindow::RecentNamespaces,
+            SideBarWindow::Namespaces,
         ))),
         KeyCode::Char('2') => event_sender.send(AppEvent::Focus(ActiveWindow::SideBar(
             SideBarWindow::RecentPortForwards,

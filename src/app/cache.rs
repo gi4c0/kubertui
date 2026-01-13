@@ -5,20 +5,21 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    app::{ActiveWindow, App, MainWindow, side_bar::port_forwards_list::PortForward},
+    app::{
+        ActiveWindow, App, MainWindowKind,
+        side_bar::{namespaces::NamespacesWindowKind, port_forwards_list::PortForward},
+    },
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},
     kubectl::pods::{Pod, PodContainer},
 };
 
 pub async fn save_cache(app: &App) -> AppResult<()> {
-    ensure_app_dir().await?;
+    ensure_app_dir()?;
 
     let cache_payload = AppCache {
-        namespaces: app.namespaces.clone().into(),
-        pods: app.pods.clone().map(|p| p.into()),
+        main: app.main.clone().into(),
         active_window: app.active_window,
-        main_window: app.main_window,
         side_bar: app.side_bar.clone().into(),
     };
 
@@ -56,17 +57,28 @@ pub async fn read_cache() -> Option<AppCache> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct MainWindowCache {
+    pub pods_list: Option<PodsListCache>,
+    pub kind: MainWindowKind,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AppCache {
-    pub namespaces: NamespacesListCache,
-    pub pods: Option<PodsListCache>,
+    pub main: MainWindowCache,
     pub side_bar: SideBarCache,
-    pub main_window: MainWindow,
     pub active_window: ActiveWindow,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct NamespacesCache {
+    pub recent: RecentNamespacesListCache,
+    pub full_list: NamespacesListCache,
+    pub kind: NamespacesWindowKind,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SideBarCache {
-    pub recent_namespaces: RecentNamespacesListCache,
+    pub namespaces: NamespacesCache,
     pub port_forwards: PortForwardsListCache,
 }
 
@@ -83,7 +95,7 @@ pub struct RecentNamespacesListCache {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PodsListCache {
     pub original_list: Vec<Pod>,
-    pub filtered_list: Vec<Pod>,
+    pub filtered_list: Vec<usize>,
     pub state: StateCache,
     pub filter: String,
     pub is_filter_mod: bool,

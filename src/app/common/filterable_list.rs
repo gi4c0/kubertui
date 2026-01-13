@@ -3,6 +3,7 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyEvent},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
+    text::Span,
     widgets::{Clear, List, ListItem, ListState, Paragraph},
 };
 
@@ -20,6 +21,24 @@ pub struct FilterableList<T> {
     filtered_list: Vec<usize>,
     filter: String,
     is_filter_mod: bool,
+}
+
+pub trait ListItemTrait {
+    fn as_ref(&self) -> &str;
+
+    fn get_style(&self) -> Option<Style> {
+        None
+    }
+}
+
+impl ListItemTrait for String {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+
+    fn get_style(&self) -> Option<Style> {
+        None
+    }
 }
 
 impl<T> From<FilterableList<T>> for FilterableListCache<T> {
@@ -57,7 +76,7 @@ impl<T> From<FilterableListCache<T>> for FilterableList<T> {
 
 impl<Item> FilterableList<Item>
 where
-    Item: Clone + AsRef<str>,
+    Item: Clone + ListItemTrait,
 {
     pub fn append_to_list(&mut self, new_item: Item) {
         self.inner_list.insert(0, new_item);
@@ -94,7 +113,16 @@ where
         let list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
-            .map(|index| ListItem::new(self.inner_list[*index].as_ref()))
+            .map(|index| {
+                let item = &self.inner_list[*index];
+                let mut span = Span::from(item.as_ref());
+
+                if let Some(style) = item.get_style() {
+                    span = span.style(style);
+                }
+
+                ListItem::new(span)
+            })
             .collect();
 
         let block = build_block(self.list_name.as_str(), !self.is_filter_mod && is_focused);
@@ -178,6 +206,27 @@ where
         };
 
         None
+    }
+
+    pub fn remove(&mut self, index: usize) {
+        let index_to_remove = self.filtered_list.remove(index);
+        self.inner_list.remove(index_to_remove);
+        self.update_filtered_list();
+
+        if self.filtered_list.get(index).is_some() {
+            return;
+        }
+
+        if index == 0 {
+            return self.state.select(None);
+        }
+
+        if self.filtered_list.get(index - 1).is_some() {
+            return self.state.select(Some(index - 1));
+        }
+
+        // TODO: select next/prev/deselect
+        self.state.select(None);
     }
 
     fn update_filtered_list(&mut self) {

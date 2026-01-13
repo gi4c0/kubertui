@@ -14,20 +14,16 @@ use crate::{
         cache::{PodsListCache, StateCache},
         common::{build_block, get_highlight_style, handle_general_keys},
         events::{AppEvent, EventSender},
-        pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
+        main::pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
     },
     error::AppResult,
     kubectl::pods::{KnownPodStatus, Pod, PodStatus, get_pods_list},
 };
 
-pub enum PodStatusEnum {
-    Terminated,
-}
-
 #[derive(Debug, Clone)]
 pub struct PodsList {
     original_list: Vec<Pod>,
-    filtered_list: Vec<Pod>,
+    filtered_list: Vec<usize>,
     event_sender: EventSender,
     state: TableState,
     filter: String,
@@ -73,7 +69,7 @@ impl PodsList {
     }
 
     pub async fn load(mut self) -> AppResult<Self> {
-        let pods = get_pods_list(self.namespace.as_str()).await?;
+        let pods = get_pods_list(self.namespace.as_str())?;
 
         let longest_name = pods
             .iter()
@@ -82,8 +78,9 @@ impl PodsList {
             .unwrap_or(10) as u16;
 
         self.longest_name = longest_name;
-        self.original_list = pods.clone();
-        self.filtered_list = pods;
+        self.filtered_list = pods.iter().enumerate().map(|(index, _)| index).collect();
+        self.original_list = pods;
+        self.state.select(Some(0));
 
         Ok(self)
     }
@@ -106,32 +103,17 @@ impl PodsList {
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        self.draw_pod_table(area, frame, is_focused);
-    }
-
-    fn draw_pod_table(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         let header = ["Name", "Containers"]
             .into_iter()
             .map(Cell::from)
             .collect::<Row>();
 
-        self.filtered_list = self
-            .original_list
-            .iter()
-            .filter(|item| {
-                if self.filter.is_empty() {
-                    return true;
-                }
-
-                item.name.contains(&self.filter)
-            })
-            .map(|item| item.to_owned())
-            .collect();
-
         let rows: Vec<Row> = self
             .filtered_list
             .iter()
-            .map(|item| {
+            .map(|index| {
+                let item = &self.original_list[*index];
+
                 Row::new([
                     item.name.as_str().into(),
                     get_status(&item.container_statuses, &item.reason),
@@ -181,7 +163,8 @@ impl PodsList {
                         local_port,
                         app_port,
                     } => {
-                        let pod = self.filtered_list[self.state.selected().unwrap_or(0)].clone();
+                        let index = self.filtered_list[self.state.selected().unwrap_or(0)];
+                        let pod = self.original_list[index].clone();
 
                         self.event_sender.send(AppEvent::PortForward {
                             pod_name: pod.name,
@@ -218,6 +201,7 @@ impl PodsList {
                 }
                 KeyCode::Char(ch) => {
                     self.filter.push(ch);
+                    self.update_filter();
                 }
                 _ => {}
             };
@@ -241,9 +225,9 @@ impl PodsList {
             }
             KeyCode::Char('/') => self.is_filter_mod = true,
             KeyCode::Char('p') => {
-                let pod_containers = self.filtered_list[self.state.selected().unwrap_or(0)]
-                    .containers
-                    .clone();
+                let index = self.filtered_list[self.state.selected().unwrap_or(0)];
+
+                let pod_containers = self.original_list[index].containers.clone();
 
                 self.port_forward_popup = Some(PortForwardPopup::new(pod_containers));
             }
@@ -252,6 +236,16 @@ impl PodsList {
         };
 
         handle_general_keys(key, &self.event_sender);
+    }
+
+    fn update_filter(&mut self) {
+        self.filtered_list = self
+            .original_list
+            .iter()
+            .filter(|item| item.name.contains(self.filter.as_str()))
+            .enumerate()
+            .map(|(index, _)| index)
+            .collect();
     }
 
     fn select_next(&mut self) {

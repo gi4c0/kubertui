@@ -31,15 +31,18 @@ impl NamespacesList {
         self.namespace_list.draw(area, frame, is_focused);
     }
 
-    pub fn restore_from_cache(&mut self, cache_list: FilterableList<String>) {
-        self.namespace_list = cache_list;
+    pub fn from_cache(list: NamespacesListCache, event_sender: EventSender) -> Self {
+        Self {
+            event_sender,
+            namespace_list: list.namespace_list.into(),
+        }
     }
 
     pub fn update_list(&mut self, new_list: Vec<String>) {
         self.namespace_list.set_items(new_list);
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(list_event) = self.namespace_list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
@@ -50,9 +53,9 @@ impl NamespacesList {
                 }
                 ListEvent::StayInList => {}
             };
-            return;
+            return true;
         }
 
-        handle_general_keys(key, &self.event_sender);
+        handle_general_keys(key, &self.event_sender)
     }
 }

@@ -1,13 +1,19 @@
 use std::process::Command;
 
 use crossterm::event::KeyCode;
-use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, widgets::ListState};
+use ratatui::{
+    Frame,
+    crossterm::event::KeyEvent,
+    layout::Rect,
+    style::{Color, Style},
+    widgets::ListState,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
         cache::PortForwardsListCache,
-        common::{FilterableList, ListEvent, handle_general_keys},
+        common::{FilterableList, ListEvent, ListItemTrait, handle_general_keys},
         events::{AppEvent, EventSender},
         notification::{LogLevel, Notification},
     },
@@ -30,7 +36,11 @@ pub struct PortForward {
     item_str: String,
 }
 
-impl AsRef<str> for PortForward {
+impl ListItemTrait for PortForward {
+    fn get_style(&self) -> Option<Style> {
+        self.pid.map(|_| Color::LightGreen.into())
+    }
+
     fn as_ref(&self) -> &str {
         &self.item_str
     }
@@ -55,11 +65,7 @@ impl PortForwardsList {
         }
     }
 
-    pub fn build_from_cache(
-        &mut self,
-        value: PortForwardsListCache,
-        event_sender: EventSender,
-    ) -> Self {
+    pub fn from_cache(value: PortForwardsListCache, event_sender: EventSender) -> Self {
         let mut state = ListState::default();
         state.select(value.list.state.selected);
 
@@ -69,7 +75,13 @@ impl PortForwardsList {
             .into_iter()
             .map(|item| {
                 if let Some(pid) = item.pid {
-                    let is_active_port_forward = self.check_pid(pid);
+                    let is_active_port_forward = match Self::check_pid(pid) {
+                        Ok(is_active_pid) => is_active_pid,
+                        Err(err) => {
+                            event_sender.send(AppEvent::ShowNotification(Notification::warn(err)));
+                            false
+                        }
+                    };
 
                     let pid = if is_active_port_forward {
                         Some(pid)
@@ -87,46 +99,31 @@ impl PortForwardsList {
         Self { list, event_sender }
     }
 
-    fn check_pid(&self, pid: u32) -> bool {
+    fn check_pid(pid: u32) -> Result<bool, String> {
         let output = match Command::new("ps")
             .args(["-p".to_string(), pid.to_string()])
             .output()
         {
             Ok(output) => output,
-            Err(err) => {
-                self.event_sender
-                    .send(AppEvent::ShowNotification(Notification::new(
-                        LogLevel::Warning,
-                        err.to_string(),
-                    )));
-                return false;
-            }
+            Err(err) => return Err(err.to_string()),
         };
 
         if output.status.success() {
             let lines_count = String::from_utf8_lossy(&output.stdout).lines().count();
-            return lines_count > 1;
+            return Ok(lines_count > 1);
         }
 
         let error_output = String::from_utf8_lossy(&output.stderr).to_string();
 
         if !error_output.is_empty() {
-            self.event_sender
-                .send(AppEvent::ShowNotification(Notification::new(
-                    LogLevel::Warning,
-                    error_output,
-                )));
+            return Err(error_output);
         }
 
-        false
+        Ok(false)
     }
 
     pub fn add_to_list(&mut self, new_item: PortForward) {
-        if new_item.pid.is_some() {
-            self.list.inner_list.insert(0, new_item);
-        } else {
-            self.list.inner_list.push(new_item);
-        }
+        self.list.append_to_list(new_item);
     }
 
     pub async fn add_to_list_and_port_forward(
@@ -155,7 +152,7 @@ impl PortForwardsList {
             pod_name,
         };
 
-        Self::port_forward(self.event_sender.clone(), &mut pod).await;
+        Self::port_forward(self.event_sender.clone(), &mut pod);
         self.add_to_list(pod);
     }
 
@@ -163,7 +160,7 @@ impl PortForwardsList {
         self.list.draw(area, frame, is_focused);
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) {
+    pub fn handle_key_event(&mut self, key: KeyEvent) {
         if handle_general_keys(key, &self.event_sender) {
             self.list.state.select(None);
             return;
@@ -179,14 +176,14 @@ impl PortForwardsList {
 
         match key.code {
             KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => {
-                self.toggle_port_forward().await
+                self.toggle_port_forward();
             }
             KeyCode::Char('d') | KeyCode::Backspace => self.delete_item(),
             _ => {}
         };
     }
 
-    async fn toggle_port_forward(&mut self) {
+    fn toggle_port_forward(&mut self) {
         if let Some(selected) = self.list.state.selected() {
             if let Some(pid) = self.list.inner_list[selected].pid {
                 self.stop_port_forward(pid);
@@ -195,7 +192,7 @@ impl PortForwardsList {
             }
 
             let pod = &mut self.list.inner_list[selected];
-            Self::port_forward(self.event_sender.clone(), pod).await;
+            Self::port_forward(self.event_sender.clone(), pod);
         }
     }
 
@@ -207,7 +204,7 @@ impl PortForwardsList {
                 self.stop_port_forward(pid);
             }
 
-            self.list.inner_list.remove(selected);
+            self.list.remove(selected);
         }
     }
 
@@ -220,15 +217,13 @@ impl PortForwardsList {
         }
     }
 
-    async fn port_forward(event_sender: EventSender, pod: &mut PortForward) {
+    fn port_forward(event_sender: EventSender, pod: &mut PortForward) {
         match kubectl::start_port_forward(
             pod.namespace.as_str(),
             pod.pod_name.as_str(),
             pod.local_port,
             pod.app_port,
-        )
-        .await
-        {
+        ) {
             Ok(pid) => pod.pid = Some(pid),
             Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::new(
                 LogLevel::Error,

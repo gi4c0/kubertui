@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{error::AppResult, kubectl::run_kubectl_command};
+use crate::{app::common::ListItemTrait, error::AppResult, kubectl::run_kubectl_command};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pod {
@@ -18,18 +18,17 @@ pub struct PodContainer {
     pub port: u16,
 }
 
-impl AsRef<str> for PodContainer {
+impl ListItemTrait for PodContainer {
     fn as_ref(&self) -> &str {
         self.name.as_str()
     }
 }
 
-pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
+pub fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
     let parsed: ApiResponse = run_kubectl_command(
         "kubectl",
         vec!["get", "pods", "-n", namespace, "-o", "json"],
-    )
-    .await?;
+    )?;
 
     Ok(parsed
         .items

@@ -1,6 +1,7 @@
+use std::process::Command;
+
 use anyhow::Context;
 use serde::Deserialize;
-use tokio::process::Command;
 
 use crate::error::{AppError, AppResult};
 
@@ -12,14 +13,10 @@ mod port_forward;
 pub use kill_process::*;
 pub use port_forward::*;
 
-async fn run_kubectl_command<T: for<'a> Deserialize<'a>>(
-    command: &str,
-    args: Vec<&str>,
-) -> AppResult<T> {
+fn run_kubectl_command<T: for<'a> Deserialize<'a>>(command: &str, args: Vec<&str>) -> AppResult<T> {
     let output = Command::new(command)
         .args(&args)
         .output()
-        .await
         .with_context(|| format!("Failed to run command {} '{}'", command, args.join(" ")))
         .map_err(AppError::FailedRunKubeCtlCommand)?;
 

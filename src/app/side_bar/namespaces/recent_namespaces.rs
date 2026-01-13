@@ -44,8 +44,12 @@ impl RecentNamespacesList {
 
         match existing_index {
             Some(existing_index) => {
-                self.recent_namespaces_list.inner_list.remove(existing_index);
-                self.recent_namespaces_list.inner_list.insert(0, new_namespace);
+                self.recent_namespaces_list
+                    .inner_list
+                    .remove(existing_index);
+                self.recent_namespaces_list
+                    .inner_list
+                    .insert(0, new_namespace);
             }
             None => self.recent_namespaces_list.append_to_list(new_namespace),
         };
@@ -55,7 +59,7 @@ impl RecentNamespacesList {
         self.recent_namespaces_list.draw(area, frame, is_focused);
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(list_event) = self.recent_namespaces_list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
@@ -66,10 +70,14 @@ impl RecentNamespacesList {
                 }
                 ListEvent::StayInList => {}
             };
+            return true;
         }
 
         if handle_general_keys(key, &self.event_sender) {
             self.recent_namespaces_list.state.select(None);
+            return true;
         }
+
+        return false;
     }
 }

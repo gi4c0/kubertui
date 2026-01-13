@@ -17,9 +17,8 @@ struct Metadata {
     name: String,
 }
 
-pub async fn get_namespaces() -> Result<Vec<String>, AppError> {
-    let parsed: Response =
-        run_kubectl_command("kubectl", vec!["get", "namespaces", "-o", "json"]).await?;
+pub fn get_namespaces() -> Result<Vec<String>, AppError> {
+    let parsed: Response = run_kubectl_command("kubectl", vec!["get", "namespaces", "-o", "json"])?;
 
     Ok(parsed
         .items

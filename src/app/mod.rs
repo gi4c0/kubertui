@@ -1,12 +1,10 @@
 pub mod cache;
-mod common;
+pub mod common;
 mod events;
-mod namespaces_list;
+mod main;
 mod notification;
-mod pods_list;
 mod side_bar;
 
-use anyhow::Context;
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{Event, KeyEvent, KeyEventKind},
@@ -18,13 +16,11 @@ use crate::{
     app::{
         cache::AppCache,
         events::{AppEvent, EventHandler},
-        namespaces_list::NamespacesList,
+        main::{MainWindow, MainWindowKind},
         notification::NotificationWidget,
-        pods_list::PodsList,
-        side_bar::SideBar,
+        side_bar::{SideBar, SideBarWindow},
     },
     error::AppResult,
-    kubectl::namespace,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -33,24 +29,10 @@ pub enum ActiveWindow {
     SideBar(SideBarWindow),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub enum SideBarWindow {
-    RecentNamespaces,
-    RecentPortForwards,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub enum MainWindow {
-    Namespaces,
-    Pods,
-}
-
 pub struct App {
-    namespaces: NamespacesList,
-    pods: Option<PodsList>,
+    main: MainWindow,
     side_bar: SideBar,
     exit: bool,
-    main_window: MainWindow,
     active_window: ActiveWindow,
     event_handler: EventHandler,
     notification: Option<NotificationWidget>,
@@ -62,13 +44,7 @@ impl App {
 
         match cache {
             Some(cache) => self.merge_cache(cache),
-            None => {
-                let namespaces = namespace::get_namespaces()
-                    .await
-                    .context("Failed to download namespaces")?;
-
-                self.namespaces.update_list(namespaces);
-            }
+            None => self.initial_load()?,
         };
 
         while !self.exit {
@@ -77,6 +53,10 @@ impl App {
         }
 
         Ok(())
+    }
+
+    fn initial_load(&mut self) -> AppResult<()> {
+        self.side_bar.initial_load()
     }
 
     fn draw(&mut self, frame: &mut Frame) {
@@ -91,19 +71,8 @@ impl App {
         };
 
         self.side_bar.draw(layouts[0], frame, side_bar_focus);
-
-        match self.main_window {
-            MainWindow::Namespaces => {
-                self.namespaces
-                    .draw(layouts[1], frame, self.active_window == ActiveWindow::Main)
-            }
-            MainWindow::Pods => match &mut self.pods {
-                Some(pods_list) => {
-                    pods_list.draw(layouts[1], frame, self.active_window == ActiveWindow::Main)
-                }
-                None => self.main_window = MainWindow::Namespaces,
-            },
-        };
+        self.main
+            .draw(layouts[1], frame, self.active_window == ActiveWindow::Main);
 
         if let Some(notification) = &mut self.notification {
             notification.draw(frame);
@@ -124,18 +93,13 @@ impl App {
             }
             AppEvent::SelectNamespace(new_namespace) => {
                 self.side_bar
-                    .recent_namespaces
-                    .add_to_list(new_namespace.clone());
+                    .namespaces
+                    .add_to_recent(new_namespace.clone());
 
-                self.pods = Some(
-                    PodsList::new(self.event_handler.sender(), new_namespace)
-                        .load()
-                        .await?,
-                );
-
+                self.main.load_pods(new_namespace).await?;
                 self.active_window = ActiveWindow::Main;
-                self.main_window = MainWindow::Pods;
             }
+
             AppEvent::PortForward {
                 pod_name,
                 local_port,
@@ -149,10 +113,9 @@ impl App {
             }
 
             AppEvent::ClosePodsList => {
-                self.active_window = ActiveWindow::Main;
-                self.pods = None;
-                self.main_window = MainWindow::Namespaces;
+                self.active_window = ActiveWindow::SideBar(SideBarWindow::Namespaces)
             }
+
             AppEvent::ShowNotification(notification) => {
                 self.notification = Some(NotificationWidget::new(
                     notification,
@@ -164,12 +127,18 @@ impl App {
 
             AppEvent::FocusNext => {
                 self.active_window = match self.active_window {
-                    ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::RecentNamespaces),
+                    ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::Namespaces),
                     ActiveWindow::SideBar(side_bar) => match side_bar {
-                        SideBarWindow::RecentNamespaces => {
+                        SideBarWindow::Namespaces => {
                             ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
                         }
-                        SideBarWindow::RecentPortForwards => ActiveWindow::Main,
+                        SideBarWindow::RecentPortForwards => {
+                            if self.main.is_empty() {
+                                ActiveWindow::SideBar(SideBarWindow::Namespaces)
+                            } else {
+                                ActiveWindow::Main
+                            }
+                        }
                     },
                 }
             }
@@ -178,9 +147,15 @@ impl App {
                 self.active_window = match self.active_window {
                     ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
                     ActiveWindow::SideBar(side_bar) => match side_bar {
-                        SideBarWindow::RecentNamespaces => ActiveWindow::Main,
+                        SideBarWindow::Namespaces => {
+                            if self.main.is_empty() {
+                                ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
+                            } else {
+                                ActiveWindow::Main
+                            }
+                        }
                         SideBarWindow::RecentPortForwards => {
-                            ActiveWindow::SideBar(SideBarWindow::RecentNamespaces)
+                            ActiveWindow::SideBar(SideBarWindow::Namespaces)
                         }
                     },
                 }
@@ -197,39 +172,15 @@ impl App {
         }
 
         match &self.active_window {
-            ActiveWindow::Main => match self.main_window {
-                MainWindow::Namespaces => self.namespaces.handle_key_event(key),
-                MainWindow::Pods => {
-                    if let Some(pods) = &mut self.pods {
-                        pods.handle_key_event(key)
-                    }
-                }
-            },
-            ActiveWindow::SideBar(side_bar) => match side_bar {
-                SideBarWindow::RecentNamespaces => {
-                    self.side_bar.recent_namespaces.handle_key_event(key)
-                }
-                SideBarWindow::RecentPortForwards => {
-                    self.side_bar.port_forwards.handle_key_event(key).await
-                }
-            },
+            ActiveWindow::Main => self.main.handle_key_event(key),
+            ActiveWindow::SideBar(side_bar) => self.side_bar.handle_key_event(key, *side_bar),
         }
     }
 
     fn merge_cache(&mut self, cache: AppCache) {
         self.active_window = cache.active_window;
-        self.main_window = cache.main_window;
-
-        self.namespaces
-            .restore_from_cache(cache.namespaces.namespace_list.into());
-
-        self.pods = cache
-            .pods
-            .map(|pods_cache| PodsList::from_cache(pods_cache, self.event_handler.sender()));
-
-        self.side_bar = self
-            .side_bar
-            .from_cache(cache.side_bar, self.event_handler.sender());
+        self.main = MainWindow::from_cache(cache.main, self.event_handler.sender());
+        self.side_bar = SideBar::from_cache(cache.side_bar, self.event_handler.sender());
     }
 }
 
@@ -238,14 +189,12 @@ impl Default for App {
         let event_handler = EventHandler::new();
 
         Self {
-            main_window: MainWindow::Namespaces,
-            active_window: ActiveWindow::Main,
-            namespaces: NamespacesList::new(event_handler.sender()),
+            active_window: ActiveWindow::SideBar(SideBarWindow::Namespaces),
             side_bar: SideBar::new(event_handler.sender()),
             exit: false,
-            event_handler,
+            main: MainWindow::new(event_handler.sender()),
             notification: None,
-            pods: None,
+            event_handler,
         }
     }
 }

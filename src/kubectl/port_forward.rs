@@ -3,11 +3,11 @@ use std::{
     io::{BufRead, BufReader, Read},
     os::unix::process::CommandExt,
     process::{Command, Stdio},
+    thread::sleep,
     time::{Duration, Instant},
 };
 
 use anyhow::Context;
-use tokio::time::sleep;
 
 use crate::{
     error::{AppError, AppResult},
@@ -16,13 +16,13 @@ use crate::{
 
 const TIME_OUT_SECONDS: u64 = 5;
 
-pub async fn start_port_forward(
+pub fn start_port_forward(
     namespace: &str,
     pod_name: &str,
     local_port: u16,
     app_port: u16,
 ) -> AppResult<u32> {
-    ensure_app_dir().await?;
+    ensure_app_dir()?;
 
     let info_log_file =
         File::create(INFO_FILE_PATH).context("Failed to create a port_forward_log file")?;
@@ -98,7 +98,7 @@ pub async fn start_port_forward(
             break;
         }
 
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(100));
     }
 
     Ok(pid)
