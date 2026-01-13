@@ -194,14 +194,16 @@ impl PodsList {
                 KeyCode::Esc => {
                     self.filter.clear();
                     self.is_filter_mod = false;
+                    self.update_filtered_list();
                     self.state.select(Some(0));
                 }
                 KeyCode::Backspace => {
                     self.filter.pop();
+                    self.update_filtered_list();
                 }
                 KeyCode::Char(ch) => {
                     self.filter.push(ch);
-                    self.update_filter();
+                    self.update_filtered_list();
                 }
                 _ => {}
             };
@@ -238,12 +240,12 @@ impl PodsList {
         handle_general_keys(key, &self.event_sender);
     }
 
-    fn update_filter(&mut self) {
+    fn update_filtered_list(&mut self) {
         self.filtered_list = self
             .original_list
             .iter()
-            .filter(|item| item.name.contains(self.filter.as_str()))
             .enumerate()
+            .filter(|(_, item)| item.name.contains(self.filter.as_str()))
             .map(|(index, _)| index)
             .collect();
     }
