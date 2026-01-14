@@ -108,8 +108,7 @@ impl App {
             } => {
                 self.side_bar
                     .port_forwards
-                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
-                    .await;
+                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port);
             }
 
             AppEvent::ClosePodsList => {
@@ -173,7 +172,7 @@ impl App {
 
         match &self.active_window {
             ActiveWindow::Main => self.main.handle_key_event(key),
-            ActiveWindow::SideBar(side_bar) => self.side_bar.handle_key_event(key, *side_bar),
+            ActiveWindow::SideBar(side_bar) => self.side_bar.handle_key_event(key, *side_bar).await,
         }
     }
 

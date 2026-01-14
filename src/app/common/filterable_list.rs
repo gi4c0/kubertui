@@ -41,13 +41,21 @@ impl ListItemTrait for String {
     }
 }
 
-impl<T> From<FilterableList<T>> for FilterableListCache<T> {
-    fn from(value: FilterableList<T>) -> Self {
+impl<Item, ItemCache> From<FilterableList<Item>> for FilterableListCache<ItemCache>
+where
+    Item: Into<ItemCache>,
+{
+    fn from(value: FilterableList<Item>) -> Self {
         Self {
             filter: value.filter,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
-            list: value.inner_list,
+            list: value
+                .inner_list
+                .into_iter()
+                .map(|item| item.into())
+                .collect(),
+
             state: StateCache {
                 selected: value.state.selected(),
             },
@@ -57,8 +65,11 @@ impl<T> From<FilterableList<T>> for FilterableListCache<T> {
     }
 }
 
-impl<T> From<FilterableListCache<T>> for FilterableList<T> {
-    fn from(value: FilterableListCache<T>) -> Self {
+impl<ItemCache, Item> From<FilterableListCache<ItemCache>> for FilterableList<Item>
+where
+    ItemCache: Into<Item>,
+{
+    fn from(value: FilterableListCache<ItemCache>) -> Self {
         let mut state = ListState::default();
         state.select(value.state.selected);
 
@@ -66,7 +77,7 @@ impl<T> From<FilterableListCache<T>> for FilterableList<T> {
             filter: value.filter,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
-            inner_list: value.list,
+            inner_list: value.list.into_iter().map(|item| item.into()).collect(),
             state,
             is_filterable: value.is_filterable,
             list_name: value.list_name,

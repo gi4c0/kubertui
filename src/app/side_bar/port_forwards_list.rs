@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{process::Command, sync::Arc, time::Duration};
 
 use crossterm::event::KeyCode;
 use ratatui::{
@@ -8,11 +8,11 @@ use ratatui::{
     style::{Color, Style},
     widgets::ListState,
 };
-use serde::{Deserialize, Serialize};
+use tokio::{sync::Mutex, time::sleep};
 
 use crate::{
     app::{
-        cache::PortForwardsListCache,
+        cache::{PortForwardCache, PortForwardsListCache},
         common::{FilterableList, ListEvent, ListItemTrait, handle_general_keys},
         events::{AppEvent, EventSender},
         notification::{LogLevel, Notification},
@@ -26,23 +26,68 @@ pub struct PortForwardsList {
     event_sender: EventSender,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone)]
 pub struct PortForward {
     namespace: String,
     pod_name: String,
     local_port: u16,
     app_port: u16,
-    pid: Option<u32>,
+    pid: Arc<Mutex<Option<u32>>>,
     item_str: String,
+}
+
+impl PartialEq for PortForward {
+    fn eq(&self, other: &Self) -> bool {
+        self.item_str.as_str() == other.item_str.as_str()
+    }
 }
 
 impl ListItemTrait for PortForward {
     fn get_style(&self) -> Option<Style> {
-        self.pid.map(|_| Color::LightGreen.into())
+        let pid = match self.pid.try_lock() {
+            Ok(pid) => *pid,
+            _ => None,
+        };
+
+        pid.map(|_| Color::LightGreen.into())
     }
 
     fn as_ref(&self) -> &str {
         &self.item_str
+    }
+}
+
+impl From<PortForward> for PortForwardCache {
+    fn from(value: PortForward) -> Self {
+        loop {
+            let value = value.clone();
+            let pid = match value.pid.try_lock() {
+                Ok(pid) => *pid,
+                _ => continue,
+            };
+
+            return Self {
+                item_str: value.item_str,
+                local_port: value.local_port,
+                namespace: value.namespace,
+                pod_name: value.pod_name,
+                app_port: value.app_port,
+                pid,
+            };
+        }
+    }
+}
+
+impl From<PortForwardCache> for PortForward {
+    fn from(value: PortForwardCache) -> Self {
+        Self {
+            item_str: value.item_str,
+            local_port: value.local_port,
+            namespace: value.namespace,
+            pod_name: value.pod_name,
+            app_port: value.app_port,
+            pid: Arc::new(Mutex::new(value.pid)),
+        }
     }
 }
 
@@ -55,6 +100,8 @@ impl From<PortForwardsList> for PortForwardsListCache {
 }
 
 impl PortForwardsList {
+    const CHECK_INTERVAL: Duration = Duration::from_secs(5);
+
     pub fn new(event_sender: EventSender) -> Self {
         let mut state = ListState::default();
         state.select(Some(1));
@@ -74,7 +121,7 @@ impl PortForwardsList {
             .inner_list
             .into_iter()
             .map(|item| {
-                if let Some(pid) = item.pid {
+                if let Some(pid) = *item.pid.try_lock().unwrap() {
                     let is_active_port_forward = match Self::check_pid(pid) {
                         Ok(is_active_pid) => is_active_pid,
                         Err(err) => {
@@ -89,7 +136,10 @@ impl PortForwardsList {
                         None
                     };
 
-                    return PortForward { pid, ..item };
+                    return PortForward {
+                        pid: Arc::new(Mutex::new(pid)),
+                        ..item
+                    };
                 }
 
                 item
@@ -138,21 +188,21 @@ impl PortForwardsList {
             .inner_list
             .iter()
             .find(|item| item.pod_name == pod_name)
-            && existing.pid.is_some()
+            && existing.pid.lock().await.is_some()
         {
             return;
         }
 
         let mut pod = PortForward {
-            pid: None,
+            pid: Arc::new(Mutex::new(None)),
             namespace,
             app_port,
             local_port,
-            item_str: format!("{} -> {local_port} {app_port}", pod_name),
+            item_str: format!("{} -> {local_port}:{app_port}", pod_name),
             pod_name,
         };
 
-        Self::port_forward(self.event_sender.clone(), &mut pod);
+        Self::port_forward(self.event_sender.clone(), &mut pod).await;
         self.add_to_list(pod);
     }
 
@@ -160,7 +210,7 @@ impl PortForwardsList {
         self.list.draw(area, frame, is_focused);
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) {
         if handle_general_keys(key, &self.event_sender) {
             self.list.state.select(None);
             return;
@@ -176,31 +226,35 @@ impl PortForwardsList {
 
         match key.code {
             KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => {
-                self.toggle_port_forward();
+                self.toggle_port_forward().await;
             }
-            KeyCode::Char('d') | KeyCode::Backspace => self.delete_item(),
+            KeyCode::Char('d') | KeyCode::Backspace => self.delete_item().await,
             _ => {}
         };
     }
 
-    fn toggle_port_forward(&mut self) {
+    async fn toggle_port_forward(&mut self) {
         if let Some(selected) = self.list.state.selected() {
-            if let Some(pid) = self.list.inner_list[selected].pid {
-                self.stop_port_forward(pid);
-                self.list.inner_list[selected].pid = None;
-                return;
+            {
+                let mut maybe_pid = self.list.inner_list[selected].pid.lock().await;
+
+                if let Some(pid) = *maybe_pid {
+                    self.stop_port_forward(pid);
+                    *maybe_pid = None;
+                    return;
+                }
             }
 
             let pod = &mut self.list.inner_list[selected];
-            Self::port_forward(self.event_sender.clone(), pod);
+            Self::port_forward(self.event_sender.clone(), pod).await;
         }
     }
 
-    fn delete_item(&mut self) {
+    async fn delete_item(&mut self) {
         if let Some(selected) = self.list.state.selected() {
             let pod = &self.list.inner_list[selected];
 
-            if let Some(pid) = pod.pid {
+            if let Some(pid) = *pod.pid.lock().await {
                 self.stop_port_forward(pid);
             }
 
@@ -217,18 +271,53 @@ impl PortForwardsList {
         }
     }
 
-    fn port_forward(event_sender: EventSender, pod: &mut PortForward) {
-        match kubectl::start_port_forward(
+    async fn port_forward(event_sender: EventSender, pod: &mut PortForward) {
+        let pid = match kubectl::start_port_forward(
             pod.namespace.as_str(),
             pod.pod_name.as_str(),
             pod.local_port,
             pod.app_port,
         ) {
-            Ok(pid) => pod.pid = Some(pid),
-            Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::new(
-                LogLevel::Error,
-                err.to_string(),
-            ))),
-        }
+            Ok(pid) => pid,
+            Err(err) => {
+                event_sender.send(AppEvent::ShowNotification(Notification::new(
+                    LogLevel::Error,
+                    err.to_string(),
+                )));
+                return;
+            }
+        };
+
+        let mut pod_pid = pod.pid.lock().await;
+        *pod_pid = Some(pid);
+
+        Self::run_port_forward_check_health_job(pod.pid.clone());
+    }
+
+    fn run_port_forward_check_health_job(pid: Arc<Mutex<Option<u32>>>) {
+        tokio::spawn(async move {
+            loop {
+                let mut pid_guard = pid.lock().await;
+
+                let pid = match *pid_guard {
+                    Some(pid) => pid,
+                    None => {
+                        *pid_guard = None;
+                        break;
+                    }
+                };
+
+                match Self::check_pid(pid) {
+                    // do nothing and wait another interval to check once again
+                    Ok(is_active) if is_active => {}
+                    _ => {
+                        *pid_guard = None;
+                        break;
+                    }
+                };
+
+                sleep(Self::CHECK_INTERVAL).await;
+            }
+        });
     }
 }

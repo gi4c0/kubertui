@@ -84,7 +84,17 @@ pub struct SideBarCache {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PortForwardsListCache {
-    pub list: FilterableListCache<PortForward>,
+    pub list: FilterableListCache<PortForwardCache>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PortForwardCache {
+    pub namespace: String,
+    pub pod_name: String,
+    pub local_port: u16,
+    pub app_port: u16,
+    pub pid: Option<u32>,
+    pub item_str: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

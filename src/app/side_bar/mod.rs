@@ -73,10 +73,10 @@ impl SideBar {
         );
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent, side_bar: SideBarWindow) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent, side_bar: SideBarWindow) {
         match side_bar {
             SideBarWindow::Namespaces => self.namespaces.handle_key_event(key),
-            SideBarWindow::RecentPortForwards => self.port_forwards.handle_key_event(key),
+            SideBarWindow::RecentPortForwards => self.port_forwards.handle_key_event(key).await,
         };
     }
 }
