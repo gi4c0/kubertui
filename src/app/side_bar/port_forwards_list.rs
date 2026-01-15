@@ -288,33 +288,38 @@ impl PortForwardsList {
             }
         };
 
-        let mut pod_pid = pod.pid.lock().await;
-        *pod_pid = Some(pid);
+        {
+            let mut pod_pid = pod.pid.lock().await;
+            *pod_pid = Some(pid);
+        }
 
-        Self::run_port_forward_check_health_job(pod.pid.clone());
+        Self::run_port_forward_check_health_worker(pod.pid.clone());
     }
 
-    fn run_port_forward_check_health_job(pid: Arc<Mutex<Option<u32>>>) {
+    fn run_port_forward_check_health_worker(pid: Arc<Mutex<Option<u32>>>) {
         tokio::spawn(async move {
             loop {
-                let mut pid_guard = pid.lock().await;
+                {
+                    let mut pid_guard = pid.lock().await;
 
-                let pid = match *pid_guard {
-                    Some(pid) => pid,
-                    None => {
-                        *pid_guard = None;
-                        break;
-                    }
-                };
+                    let pid = match *pid_guard {
+                        Some(pid) => pid,
+                        None => {
+                            *pid_guard = None;
+                            break;
+                        }
+                    };
 
-                match Self::check_pid(pid) {
-                    // do nothing and wait another interval to check once again
-                    Ok(is_active) if is_active => {}
-                    _ => {
-                        *pid_guard = None;
-                        break;
-                    }
-                };
+                    match Self::check_pid(pid) {
+                        // do nothing and wait another interval to check once again
+                        Ok(is_active) if is_active => {}
+                        _ => {
+                            *pid_guard = None;
+                            break;
+                        }
+                    };
+                    // After this block guard is dropped and lock is released
+                }
 
                 sleep(Self::CHECK_INTERVAL).await;
             }

@@ -1,13 +1,13 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
-    os::unix::process::CommandExt,
-    process::{Command, Stdio},
+    process::Stdio,
     thread::sleep,
     time::{Duration, Instant},
 };
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
+use tokio::process::Command;
 
 use crate::{
     error::{AppError, AppResult},
@@ -30,7 +30,7 @@ pub fn start_port_forward(
     let error_log_file =
         File::create(ERROR_FILE_PATH).context("Failed to create a port_forward_error file")?;
 
-    let pid = unsafe {
+    let mut child = unsafe {
         Command::new("kubectl")
             .args([
                 "port-forward",
@@ -54,7 +54,6 @@ pub fn start_port_forward(
             .spawn()
             .context("Failed to start port-forward process")
             .map_err(AppError::PortForwardError)?
-            .id()
     };
 
     let mut buf_reader = BufReader::new(
@@ -101,27 +100,15 @@ pub fn start_port_forward(
         sleep(Duration::from_millis(100));
     }
 
+    let pid = child
+        .id()
+        .ok_or(anyhow!("no pid for port-forward"))
+        .map_err(AppError::PortForwardError)?;
+
+    // Wait for the process to finish and kill the zombie if it was killed outside the program
+    tokio::spawn(async move {
+        let _ = child.wait().await;
+    });
+
     Ok(pid)
 }
-
-// let output = Command::new("kubectl")
-//     .args([
-//         "port-forward",
-//         pod_name,
-//         format!("{}:{}", local_port, app_port).as_str(),
-//         "-n",
-//         namespace,
-//     ])
-//     .output()
-//     .await
-//     .with_context(|| format!("Failed to run port-forward command {local_port}:{app_port}"))
-//     .map_err(AppError::FailedRunKubeCtlCommand)?;
-//
-// // TODO: handle taken port error
-// if !output.status.success() {
-//     return Err(AppError::FailedRunKubeCtlCommand(anyhow::anyhow!(
-//         "Failed to run port-forward command {local_port}:{app_port}"
-//     )));
-// }
-//
-// Ok(())

@@ -81,6 +81,7 @@ impl App {
 
     async fn handle_events(&mut self) -> AppResult<()> {
         match self.event_handler.next().await? {
+            AppEvent::Tick => {}
             AppEvent::Crossterm(crossterm_event) => match crossterm_event {
                 Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                     self.handle_key_event(key_event).await
@@ -108,7 +109,8 @@ impl App {
             } => {
                 self.side_bar
                     .port_forwards
-                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port);
+                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
+                    .await;
             }
 
             AppEvent::ClosePodsList => {

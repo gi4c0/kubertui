@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
 use ratatui::crossterm::{self, event::Event as CrosstermEvent};
@@ -8,8 +10,11 @@ use crate::{
     error::{AppError, AppResult},
 };
 
+const TICK_FPS: f64 = 30.0;
+
 pub enum AppEvent {
     Crossterm(CrosstermEvent),
+    Tick,
     Focus(ActiveWindow),
     FocusNext,
     FocusPrev,
@@ -79,13 +84,20 @@ impl EventTask {
 
     async fn run(self) {
         let mut reader = crossterm::event::EventStream::new();
+        let tick_rate = Duration::from_secs_f64(1.0 / TICK_FPS);
+        let mut tick = tokio::time::interval(tick_rate);
 
         loop {
             let crossterm_event = reader.next().fuse();
+            let tick_delay = tick.tick();
 
             tokio::select! {
                 _ = self.sender.closed() => {
                     break;
+                }
+
+                _ = tick_delay => {
+                    self.send(AppEvent::Tick);
                 }
 
                 Some(Ok(evt)) = crossterm_event => {
