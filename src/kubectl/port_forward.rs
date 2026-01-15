@@ -1,13 +1,15 @@
 use std::{
-    fs::File,
-    io::{BufRead, BufReader, Read},
     process::Stdio,
     thread::sleep,
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, anyhow};
-use tokio::process::Command;
+use tokio::{
+    fs::File,
+    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
+    process::Command,
+};
 
 use crate::{
     error::{AppError, AppResult},
@@ -16,19 +18,21 @@ use crate::{
 
 const TIME_OUT_SECONDS: u64 = 5;
 
-pub fn start_port_forward(
+pub async fn start_port_forward(
     namespace: &str,
     pod_name: &str,
     local_port: u16,
     app_port: u16,
 ) -> AppResult<u32> {
-    ensure_app_dir()?;
+    ensure_app_dir().await?;
 
-    let info_log_file =
-        File::create(INFO_FILE_PATH).context("Failed to create a port_forward_log file")?;
+    let info_log_file = File::create(INFO_FILE_PATH)
+        .await
+        .context("Failed to create a port_forward_log file")?;
 
-    let error_log_file =
-        File::create(ERROR_FILE_PATH).context("Failed to create a port_forward_error file")?;
+    let error_log_file = File::create(ERROR_FILE_PATH)
+        .await
+        .context("Failed to create a port_forward_error file")?;
 
     let mut child = unsafe {
         Command::new("kubectl")
@@ -40,8 +44,8 @@ pub fn start_port_forward(
                 namespace,
             ])
             .stdin(Stdio::null())
-            .stdout(info_log_file)
-            .stderr(error_log_file)
+            .stdout(info_log_file.into_std().await)
+            .stderr(error_log_file.into_std().await)
             .pre_exec(|| {
                 // Try to create a new session
                 // This call is unsafe because it runs in the child process after fork but before exec.
@@ -58,6 +62,7 @@ pub fn start_port_forward(
 
     let mut buf_reader = BufReader::new(
         File::open(INFO_FILE_PATH)
+            .await
             .context("failed to open info file path")
             .map_err(AppError::PortForwardError)?,
     );
@@ -72,9 +77,11 @@ pub fn start_port_forward(
             let mut logged_error = String::new();
 
             File::open(ERROR_FILE_PATH)
+                .await
                 .context("failed to open error file path")
                 .map_err(AppError::PortForwardError)?
                 .read_to_string(&mut logged_error)
+                .await
                 .context("failed to read error from log file")
                 .map_err(AppError::PortForwardError)?;
 
@@ -91,6 +98,7 @@ pub fn start_port_forward(
 
         buf_reader
             .read_line(&mut line)
+            .await
             .context("failed to read from port forward log file")?;
 
         if line.contains("Forwarding from") {

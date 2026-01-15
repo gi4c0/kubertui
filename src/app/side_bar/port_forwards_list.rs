@@ -277,7 +277,9 @@ impl PortForwardsList {
             pod.pod_name.as_str(),
             pod.local_port,
             pod.app_port,
-        ) {
+        )
+        .await
+        {
             Ok(pid) => pid,
             Err(err) => {
                 event_sender.send(AppEvent::ShowNotification(Notification::new(

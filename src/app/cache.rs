@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub async fn save_cache(app: &App) -> AppResult<()> {
-    ensure_app_dir()?;
+    ensure_app_dir().await?;
 
     let cache_payload = AppCache {
         main: app.main.clone().into(),
