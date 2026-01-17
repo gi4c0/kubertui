@@ -211,16 +211,16 @@ impl PortForwardsList {
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {
-        if handle_general_keys(key, &self.event_sender) {
-            self.list.state.select(None);
+        // Handle inner_list keys
+        if let Some(event) = self.list.handle_key(key) {
+            if event == ListEvent::Quit {
+                self.event_sender.send(AppEvent::Quit);
+            }
             return;
         }
 
-        // Handle inner_list keys
-        if let Some(event) = self.list.handle_key(key)
-            && event == ListEvent::Quit
-        {
-            self.event_sender.send(AppEvent::Quit);
+        if handle_general_keys(key, &self.event_sender) {
+            self.list.state.select(None);
             return;
         }
 
