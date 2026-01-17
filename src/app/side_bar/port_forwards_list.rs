@@ -33,6 +33,7 @@ pub struct PortForward {
     local_port: u16,
     app_port: u16,
     pid: Arc<Mutex<Option<u32>>>,
+    is_loading: Arc<Mutex<bool>>,
     item_str: String,
 }
 
@@ -87,6 +88,7 @@ impl From<PortForwardCache> for PortForward {
             pod_name: value.pod_name,
             app_port: value.app_port,
             pid: Arc::new(Mutex::new(value.pid)),
+            is_loading: Arc::new(Mutex::new(false)),
         }
     }
 }
@@ -193,16 +195,23 @@ impl PortForwardsList {
             return;
         }
 
-        let mut pod = PortForward {
+        let pod = PortForward {
             pid: Arc::new(Mutex::new(None)),
             namespace,
             app_port,
             local_port,
             item_str: format!("{} -> {local_port}:{app_port}", pod_name),
             pod_name,
+            is_loading: Arc::new(Mutex::new(true)),
         };
 
-        Self::port_forward(self.event_sender.clone(), &mut pod).await;
+        let event_sender = self.event_sender.clone();
+        let cloned_pod = pod.clone();
+
+        tokio::spawn(async {
+            Self::port_forward(event_sender, cloned_pod).await;
+        });
+
         self.add_to_list(pod);
     }
 
@@ -245,8 +254,12 @@ impl PortForwardsList {
                 }
             }
 
-            let pod = &mut self.list.inner_list[selected];
-            Self::port_forward(self.event_sender.clone(), pod).await;
+            let pod = self.list.inner_list[selected].clone();
+            let event_sender = self.event_sender.clone();
+
+            tokio::spawn(async {
+                Self::port_forward(event_sender, pod).await;
+            });
         }
     }
 
@@ -271,7 +284,7 @@ impl PortForwardsList {
         }
     }
 
-    async fn port_forward(event_sender: EventSender, pod: &mut PortForward) {
+    async fn port_forward(event_sender: EventSender, pod: PortForward) {
         let pid = match kubectl::start_port_forward(
             pod.namespace.as_str(),
             pod.pod_name.as_str(),
@@ -293,6 +306,9 @@ impl PortForwardsList {
         {
             let mut pod_pid = pod.pid.lock().await;
             *pod_pid = Some(pid);
+
+            let mut is_loading = pod.is_loading.lock().await;
+            *is_loading = false;
         }
 
         Self::run_port_forward_check_health_worker(pod.pid.clone());

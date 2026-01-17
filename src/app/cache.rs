@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    app::{
-        ActiveWindow, App, MainWindowKind,
-        side_bar::{namespaces::NamespacesWindowKind, port_forwards_list::PortForward},
-    },
+    app::{ActiveWindow, App, MainWindowKind, side_bar::namespaces::NamespacesWindowKind},
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},
     kubectl::pods::{Pod, PodContainer},
