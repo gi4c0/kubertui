@@ -1,8 +1,10 @@
 mod filterable_list;
 mod general_key_handler;
+mod spinner;
 
 pub use filterable_list::*;
 pub use general_key_handler::*;
+pub use spinner::*;
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},

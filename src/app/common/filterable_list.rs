@@ -29,6 +29,10 @@ pub trait ListItemTrait {
     fn get_style(&self) -> Option<Style> {
         None
     }
+
+    fn is_loading(&self) -> Option<String> {
+        None
+    }
 }
 
 impl ListItemTrait for String {
@@ -126,7 +130,13 @@ where
             .iter()
             .map(|index| {
                 let item = &self.inner_list[*index];
+                // TODO: use Line
                 let mut span = Span::from(item.as_ref());
+
+                if let Some(spinner_text) = item.is_loading() {
+                    let span_content = span.content;
+                    span = Span::from(format!("{span_content} {spinner_text}"));
+                }
 
                 if let Some(style) = item.get_style() {
                     span = span.style(style);
