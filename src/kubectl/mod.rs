@@ -7,10 +7,12 @@ use crate::error::{AppError, AppResult};
 
 mod kill_process;
 pub mod namespace;
+mod pod_logs;
 pub mod pods;
 mod port_forward;
 
 pub use kill_process::*;
+pub use pod_logs::*;
 pub use port_forward::*;
 
 fn run_kubectl_command<T: for<'a> Deserialize<'a>>(command: &str, args: Vec<&str>) -> AppResult<T> {

@@ -14,7 +14,7 @@ pub enum AppError {
     #[error("failed to save/retrieve cache: {0}")]
     CacheError(Error),
 
-    #[error("failed to load namespaces: {0}")]
+    #[error("failed to run kubectl command: {0}")]
     FailedRunKubeCtlCommand(Error),
 
     #[error("error from terminal: {0}")]
