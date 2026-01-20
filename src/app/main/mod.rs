@@ -7,11 +7,13 @@ use crate::{
     error::AppResult,
 };
 
+pub mod logs;
 pub mod pods_list;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum MainWindowKind {
     Pods,
+    Logs,
 }
 
 #[derive(Debug, Clone)]
