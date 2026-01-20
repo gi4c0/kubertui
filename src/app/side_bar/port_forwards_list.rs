@@ -324,6 +324,8 @@ impl PortForwardsList {
             }
         };
 
+        Self::stop_spinner(pod.spinner.clone()).await;
+
         {
             let mut pod_pid = pod.pid.lock().await;
             *pod_pid = Some(pid);
