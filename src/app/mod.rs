@@ -101,6 +101,8 @@ impl App {
                 self.active_window = ActiveWindow::Main;
             }
 
+            AppEvent::ShowLogs(pod_name) => self.main.show_logs(pod_name).await?,
+
             AppEvent::PortForward {
                 pod_name,
                 local_port,

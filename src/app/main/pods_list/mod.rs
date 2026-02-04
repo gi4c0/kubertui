@@ -145,10 +145,9 @@ impl PodsList {
 
             frame.render_widget(filter_widget, layouts[0]);
             frame.render_stateful_widget(table, layouts[1], &mut self.state);
-            return;
+        } else {
+            frame.render_stateful_widget(table, area, &mut self.state);
         }
-
-        frame.render_stateful_widget(table, area, &mut self.state);
 
         if let Some(port_forward_popup) = &mut self.port_forward_popup {
             port_forward_popup.draw(frame);
@@ -228,10 +227,15 @@ impl PodsList {
             KeyCode::Char('/') => self.is_filter_mod = true,
             KeyCode::Char('p') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-
                 let pod_containers = self.original_list[index].containers.clone();
-
                 self.port_forward_popup = Some(PortForwardPopup::new(pod_containers));
+            }
+            KeyCode::Char('l') => {
+                let index = self.filtered_list[self.state.selected().unwrap_or(0)];
+                let pod_container = self.original_list[index].name.clone();
+
+                self.event_sender.send(AppEvent::ShowLogs(pod_container));
+                return;
             }
             KeyCode::Esc => self.event_sender.send(AppEvent::ClosePodsList),
             _ => {}

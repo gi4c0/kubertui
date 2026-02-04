@@ -1,6 +1,7 @@
 use std::io::ErrorKind;
 
 use anyhow::Context;
+use ratatui::widgets::ListState;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
@@ -126,6 +127,22 @@ pub struct NamespacesListCache {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StateCache {
     pub selected: Option<usize>,
+}
+
+impl From<ListState> for StateCache {
+    fn from(value: ListState) -> Self {
+        Self {
+            selected: value.selected(),
+        }
+    }
+}
+
+impl From<StateCache> for ListState {
+    fn from(value: StateCache) -> Self {
+        let mut state = ListState::default();
+        state.select(value.selected);
+        state
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -5,27 +5,27 @@ use tokio::process::Command;
 
 use crate::error::{AppError, AppResult};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Log {
-    pub level: LogLevel,
-    pub timestamp: u64,
-    pub time: String,
-    pub msg: String,
-    pub request_id: Option<String>,
-    pub action: Option<String>,
-    pub context: Option<String>,
-    pub time_spend: Option<u64>,
-}
+// #[derive(Debug, Clone, Deserialize, Serialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct Log {
+//     pub level: LogLevel,
+//     pub timestamp: u64,
+//     pub time: String,
+//     pub msg: String,
+//     pub request_id: Option<String>,
+//     pub action: Option<String>,
+//     pub context: Option<String>,
+//     pub time_spend: Option<u64>,
+// }
+//
+// #[derive(Debug, Clone, Copy, Deserialize, Serialize, Display)]
+// pub enum LogLevel {
+//     Info,
+//     Warn,
+//     Error,
+// }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, Display)]
-pub enum LogLevel {
-    Info,
-    Warn,
-    Error,
-}
-
-pub async fn load_logs(pod_name: &str) -> AppResult<Vec<Log>> {
+pub async fn load_logs(pod_name: &str) -> AppResult<Vec<String>> {
     let output = Command::new("kubectl")
         .args(["logs", pod_name])
         .output()
@@ -40,14 +40,10 @@ pub async fn load_logs(pod_name: &str) -> AppResult<Vec<Log>> {
         )));
     }
 
-    let result: Vec<Log> = String::from_utf8_lossy(&output.stdout)
+    let result: Vec<String> = String::from_utf8_lossy(&output.stdout)
         .lines()
-        .map(|line| {
-            serde_json::from_str(line)
-                .with_context(|| format!("Unknown log format: {line}"))
-                .map_err(AppError::FailedRunKubeCtlCommand)
-        })
-        .collect::<Result<Vec<Log>, _>>()?;
+        .map(|line| line.to_owned())
+        .collect::<Vec<_>>();
 
     Ok(result)
 }

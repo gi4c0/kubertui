@@ -246,7 +246,6 @@ where
             return self.state.select(Some(index - 1));
         }
 
-        // TODO: select next/prev/deselect
         self.state.select(None);
     }
 

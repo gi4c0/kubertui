@@ -3,7 +3,12 @@ use ratatui::{Frame, layout::Rect};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::{cache::MainWindowCache, events::EventSender, main::pods_list::PodsList},
+    app::{
+        cache::MainWindowCache,
+        events::{AppEvent, EventSender},
+        main::{logs::PodLogs, pods_list::PodsList},
+        notification::Notification,
+    },
     error::AppResult,
 };
 
@@ -19,6 +24,7 @@ pub enum MainWindowKind {
 #[derive(Debug, Clone)]
 pub struct MainWindow {
     pods_list: Option<PodsList>,
+    pod_logs: Option<PodLogs>,
     event_sender: EventSender,
     kind: MainWindowKind,
 }
@@ -36,7 +42,26 @@ impl MainWindow {
     pub fn is_empty(&self) -> bool {
         match self.kind {
             MainWindowKind::Pods => self.pods_list.is_none(),
+            MainWindowKind::Logs => self.pod_logs.is_none(),
         }
+    }
+
+    pub async fn show_logs(&mut self, pod_name: String) -> AppResult<()> {
+        let logs = match PodLogs::load(pod_name).await {
+            Ok(logs) => logs,
+            Err(err) => {
+                self.event_sender
+                    .send(AppEvent::ShowNotification(Notification::error(
+                        err.to_string(),
+                    )));
+                return Ok(());
+            }
+        };
+
+        self.pod_logs = Some(logs);
+        self.kind = MainWindowKind::Logs;
+
+        Ok(())
     }
 
     pub fn new(event_sender: EventSender) -> Self {
@@ -44,6 +69,7 @@ impl MainWindow {
             event_sender,
             pods_list: None,
             kind: MainWindowKind::Pods,
+            pod_logs: None,
         }
     }
 
@@ -64,6 +90,7 @@ impl MainWindow {
                 .map(|pods_list| PodsList::from_cache(pods_list, event_sender.clone())),
             event_sender,
             kind: value.kind,
+            pod_logs: None,
         }
     }
 
@@ -72,6 +99,17 @@ impl MainWindow {
             MainWindowKind::Pods => {
                 if let Some(pods_list) = &mut self.pods_list {
                     pods_list.handle_key_event(key);
+                }
+            }
+
+            MainWindowKind::Logs => {
+                if let Some(pods_logs) = &mut self.pod_logs {
+                    let should_close = pods_logs.handle_key_event(key);
+
+                    if should_close {
+                        self.pod_logs = None;
+                        self.kind = MainWindowKind::Pods;
+                    }
                 }
             }
         }
@@ -83,6 +121,11 @@ impl MainWindow {
                 .pods_list
                 .as_mut()
                 .map(|pods_list| pods_list.draw(area, frame, is_focused)),
+
+            MainWindowKind::Logs => self
+                .pod_logs
+                .as_mut()
+                .map(|pod_logs| pod_logs.draw(area, frame, is_focused)),
         };
     }
 }
