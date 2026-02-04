@@ -1,3 +1,5 @@
+mod log_item;
+
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -9,7 +11,10 @@ use ratatui::{
 use serde_json::Value;
 
 use crate::{
-    app::common::{FOCUS_COLOR, build_block},
+    app::{
+        common::{FOCUS_COLOR, build_block},
+        main::logs::log_item::{LogItem, LogItemEnum},
+    },
     error::AppResult,
     kubectl,
 };
@@ -24,6 +29,7 @@ pub struct PodLogs {
     add_new_filter_mod: bool,
     edit_filters_mod: bool,
     active_filter_index: usize,
+    selected_log: Option<LogItem>,
 }
 
 impl PodLogs {
@@ -46,6 +52,7 @@ impl PodLogs {
             .collect();
 
         Ok(Self {
+            selected_log: None,
             active_filter_index: 0,
             filters: Vec::new(),
             add_new_filter_mod: false,
@@ -62,6 +69,10 @@ impl PodLogs {
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+        if let Some(selected_log) = &mut self.selected_log {
+            return selected_log.draw(area, frame, is_focused);
+        }
+
         let list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
@@ -117,6 +128,15 @@ impl PodLogs {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+        if let Some(selected_log) = &mut self.selected_log {
+            let should_close = selected_log.handle_key_event(key);
+
+            if should_close {
+                self.selected_log = None;
+            }
+            return false;
+        }
+
         if self.edit_filters_mod {
             match key.code {
                 // Select next filter
@@ -199,10 +219,12 @@ impl PodLogs {
 
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => return true,
+
             KeyCode::Char('/') => {
                 self.filters.push(String::new());
                 self.add_new_filter_mod = true;
             }
+
             KeyCode::Char('f') => {
                 if self.filters.is_empty() {
                     return false;
@@ -210,8 +232,34 @@ impl PodLogs {
 
                 self.edit_filters_mod = true;
             }
+
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
+
+            KeyCode::Char('G') => {
+                if !self.filtered_list.is_empty() {
+                    self.state.select(Some(self.filtered_list.len() - 1));
+                }
+            }
+            KeyCode::Char('g') => {
+                if !self.filtered_list.is_empty() {
+                    self.state.select(Some(0));
+                }
+            }
+
+            KeyCode::Enter => {
+                if let Some(selected) = self.state.selected() {
+                    let index = &self.filtered_list[selected];
+                    let log = &self.logs[*index];
+
+                    let log = match serde_json::from_str(log) {
+                        Ok(value) => LogItemEnum::Json(value),
+                        _ => LogItemEnum::PlainText(log.to_owned()),
+                    };
+
+                    self.selected_log = Some(LogItem::new(log, self.pod_name.clone()));
+                }
+            }
             _ => return false,
         };
 
