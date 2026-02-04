@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -37,12 +39,17 @@ impl LogItem {
 
             LogItemEnum::Json(json) => {
                 if let Some(object) = json.as_object() {
-                    let lines: Vec<Line> = object
+                    let lines: Vec<String> = object
                         .iter()
-                        .map(|(key, value)| Line::from(format!("{key}: {value}")))
+                        .map(|(key, value)| {
+                            let maybe_inner_json = Self::find_and_format_json(value)
+                                .unwrap_or_else(|| value.to_string());
+
+                            format!("{key}: {maybe_inner_json}")
+                        })
                         .collect();
 
-                    Paragraph::new(lines).wrap(Wrap { trim: true })
+                    Paragraph::new(lines.join("\n")).wrap(Wrap { trim: false })
                 } else {
                     Paragraph::new(json.to_string()).wrap(Wrap { trim: true })
                 }
@@ -70,5 +77,23 @@ impl LogItem {
         }
 
         false
+    }
+
+    fn find_and_format_json(value: &Value) -> Option<String> {
+        if let Some(str_value) = value.as_str()
+            && let Some(first_bracket_index) = str_value.chars().position(|ch| ch == '{')
+            && let Some(last_bracket_index) = str_value.chars().rev().position(|ch| ch == '}')
+        {
+            let maybe_inner_json =
+                &str_value[first_bracket_index..str_value.len() - 1 - last_bracket_index + 1];
+
+            if let Ok(json_value) = serde_json::from_str::<Value>(maybe_inner_json)
+                && let Ok(pretty) = serde_json::to_string_pretty(&json_value)
+            {
+                return Some(pretty);
+            }
+        }
+
+        None
     }
 }
