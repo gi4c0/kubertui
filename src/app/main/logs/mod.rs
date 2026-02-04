@@ -198,7 +198,7 @@ impl PodLogs {
         }
 
         match key.code {
-            KeyCode::Char('q') => return true,
+            KeyCode::Char('q') | KeyCode::Esc => return true,
             KeyCode::Char('/') => {
                 self.filters.push(String::new());
                 self.add_new_filter_mod = true;

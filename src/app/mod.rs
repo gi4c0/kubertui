@@ -130,37 +130,31 @@ impl App {
 
             AppEvent::FocusNext => {
                 self.active_window = match self.active_window {
-                    ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::Namespaces),
+                    // ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::Namespaces),
                     ActiveWindow::SideBar(side_bar) => match side_bar {
                         SideBarWindow::Namespaces => {
                             ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
                         }
                         SideBarWindow::RecentPortForwards => {
-                            if self.main.is_empty() {
-                                ActiveWindow::SideBar(SideBarWindow::Namespaces)
-                            } else {
-                                ActiveWindow::Main
-                            }
+                            ActiveWindow::SideBar(SideBarWindow::Namespaces)
                         }
                     },
+                    _ => self.active_window,
                 }
             }
 
             AppEvent::FocusPrev => {
                 self.active_window = match self.active_window {
-                    ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
+                    // ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
                     ActiveWindow::SideBar(side_bar) => match side_bar {
                         SideBarWindow::Namespaces => {
-                            if self.main.is_empty() {
-                                ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
-                            } else {
-                                ActiveWindow::Main
-                            }
+                            ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
                         }
                         SideBarWindow::RecentPortForwards => {
                             ActiveWindow::SideBar(SideBarWindow::Namespaces)
                         }
                     },
+                    _ => self.active_window,
                 }
             }
         }

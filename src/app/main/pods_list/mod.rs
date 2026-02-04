@@ -235,13 +235,10 @@ impl PodsList {
                 let pod_container = self.original_list[index].name.clone();
 
                 self.event_sender.send(AppEvent::ShowLogs(pod_container));
-                return;
             }
             KeyCode::Esc => self.event_sender.send(AppEvent::ClosePodsList),
             _ => {}
         };
-
-        handle_general_keys(key, &self.event_sender);
     }
 
     fn update_filtered_list(&mut self) {
