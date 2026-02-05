@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::Rect,
-    widgets::{Clear, Paragraph},
+    widgets::{Clear, Paragraph, Wrap},
 };
 use serde_json::Value;
 
@@ -47,6 +47,7 @@ impl LogItem {
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         let paragraph = Paragraph::new(self.text.as_str())
+            .wrap(Wrap { trim: false })
             .block(build_block(self.pod_name.as_str(), is_focused))
             .scroll((self.scroll, 0));
 
