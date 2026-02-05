@@ -13,7 +13,7 @@ use serde_json::Value;
 use crate::{
     app::{
         common::{FOCUS_COLOR, build_block},
-        main::logs::log_item::{LogItem, LogItemEnum},
+        main::logs::log_item::LogItem,
     },
     error::AppResult,
     kubectl,
@@ -252,12 +252,7 @@ impl PodLogs {
                     let index = &self.filtered_list[selected];
                     let log = &self.logs[*index];
 
-                    let log = match serde_json::from_str(log) {
-                        Ok(value) => LogItemEnum::Json(value),
-                        _ => LogItemEnum::PlainText(log.to_owned()),
-                    };
-
-                    self.selected_log = Some(LogItem::new(log, self.pod_name.clone()));
+                    self.selected_log = Some(LogItem::new(log.clone(), self.pod_name.clone()));
                 }
             }
             _ => return false,
