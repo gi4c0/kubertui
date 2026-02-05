@@ -1,10 +1,7 @@
-use std::fmt::format;
-
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::Rect,
-    text::Line,
     widgets::{Clear, Paragraph, Wrap},
 };
 use serde_json::Value;
@@ -42,10 +39,13 @@ impl LogItem {
                     let lines: Vec<String> = object
                         .iter()
                         .map(|(key, value)| {
-                            let maybe_inner_json = Self::find_and_format_json(value)
-                                .unwrap_or_else(|| value.to_string());
-
-                            format!("{key}: {maybe_inner_json}")
+                            if let Some((before_json, maybe_inner_json, after_json)) =
+                                Self::find_and_format_json(value)
+                            {
+                                format!("{key}: {before_json}\n{maybe_inner_json}\n{after_json}")
+                            } else {
+                                format!("{key}: {value}\n")
+                            }
                         })
                         .collect();
 
@@ -79,18 +79,21 @@ impl LogItem {
         false
     }
 
-    fn find_and_format_json(value: &Value) -> Option<String> {
+    fn find_and_format_json(value: &Value) -> Option<(String, String, String)> {
         if let Some(str_value) = value.as_str()
             && let Some(first_bracket_index) = str_value.chars().position(|ch| ch == '{')
             && let Some(last_bracket_index) = str_value.chars().rev().position(|ch| ch == '}')
         {
-            let maybe_inner_json =
-                &str_value[first_bracket_index..str_value.len() - 1 - last_bracket_index + 1];
+            let last_bracket_index = str_value.len() - 1 - last_bracket_index + 1;
+
+            let before_json = &str_value[0..first_bracket_index];
+            let maybe_inner_json = &str_value[first_bracket_index..last_bracket_index];
+            let after_json = &str_value[last_bracket_index..];
 
             if let Ok(json_value) = serde_json::from_str::<Value>(maybe_inner_json)
                 && let Ok(pretty) = serde_json::to_string_pretty(&json_value)
             {
-                return Some(pretty);
+                return Some((before_json.to_owned(), pretty, after_json.to_owned()));
             }
         }
 
