@@ -1,7 +1,5 @@
 mod port_forward_popup;
 
-use std::sync::Arc;
-
 use crossterm::event::KeyCode;
 
 use ratatui::{
@@ -10,7 +8,6 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Cell, Paragraph, Row, Table, TableState},
 };
-use tokio::sync::Mutex;
 
 use crate::{
     app::{
@@ -30,14 +27,14 @@ use crate::{
 #[derive(Debug, Clone)]
 struct PodWithSpinner {
     pod: Pod,
-    spinner: Arc<Mutex<Option<Spinner>>>,
+    spinner: Spinner,
 }
 
 impl From<Pod> for PodWithSpinner {
     fn from(value: Pod) -> Self {
         Self {
             pod: value,
-            spinner: Arc::new(Mutex::new(None)),
+            spinner: Spinner::new(),
         }
     }
 }
@@ -141,12 +138,8 @@ impl PodsList {
             .iter()
             .map(|index| {
                 let item = &self.original_list[*index];
-                let maybe_spinner = item
-                    .spinner
-                    .try_lock()
-                    .map(|spinner| spinner.as_ref().map(|s| s.get_spin_state()).unwrap_or(" "))
-                    .unwrap_or(" ");
 
+                let maybe_spinner = item.spinner.get_spin_state();
                 let pod_name = format!("{maybe_spinner} {}", item.pod.name.as_str());
 
                 Row::new([
@@ -269,7 +262,7 @@ impl PodsList {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
                 let pod_container = &mut self.original_list[index];
 
-                pod_container.spinner = Arc::new(Mutex::new(Some(Spinner::new())));
+                pod_container.spinner.start();
 
                 let pod_name = pod_container.pod.name.clone();
                 Self::load_logs(
@@ -283,15 +276,13 @@ impl PodsList {
         };
     }
 
-    fn load_logs(
-        pod_name: String,
-        event_sender: EventSender,
-        spinner: Arc<Mutex<Option<Spinner>>>,
-    ) {
+    fn load_logs(pod_name: String, event_sender: EventSender, mut spinner: Spinner) {
         tokio::spawn(async move {
             let logs = match PodLogs::load(pod_name).await {
                 Ok(logs) => logs,
                 Err(err) => {
+                    spinner.stop().await;
+
                     event_sender.send(AppEvent::ShowNotification(Notification::error(
                         err.to_string(),
                     )));
@@ -300,7 +291,7 @@ impl PodsList {
             };
 
             event_sender.send(AppEvent::ShowLogs(logs));
-            Spinner::stop(spinner).await;
+            spinner.stop().await;
         });
     }
 

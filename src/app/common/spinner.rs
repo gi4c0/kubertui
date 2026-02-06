@@ -2,8 +2,13 @@ use std::{sync::Arc, time::Duration};
 
 use tokio::{sync::Mutex, task::JoinHandle, time::sleep};
 
-#[derive(Default, Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct Spinner {
+    state: Arc<Mutex<Option<SpinnerState>>>,
+}
+
+#[derive(Debug)]
+struct SpinnerState {
     current_state: Arc<Mutex<u8>>,
     previous_state: Arc<Mutex<u8>>,
     task: Option<JoinHandle<()>>,
@@ -23,37 +28,48 @@ impl Spinner {
         0
     }
 
+    pub fn is_loading(&self) -> bool {
+        match self.state.try_lock() {
+            Ok(state) => state.is_some(),
+            _ => false,
+        }
+    }
+
     pub fn new() -> Self {
-        let mut spinner = Self {
+        Self {
+            state: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub fn get_spin_state(&self) -> &'static str {
+        let state = match self.state.try_lock() {
+            Ok(state) => state,
+            _ => return Self::VALUES[0],
+        };
+
+        match state.as_ref() {
+            Some(state) => match state.current_state.try_lock() {
+                Ok(current_state) => Self::VALUES[*current_state as usize],
+                _ => match state.previous_state.try_lock() {
+                    Ok(previous_state) => Self::VALUES[*previous_state as usize],
+                    _ => Self::VALUES[0],
+                },
+            },
+            None => " ",
+        }
+    }
+
+    pub fn start(&mut self) {
+        let mut state = SpinnerState {
             current_state: Arc::new(Mutex::new(0)),
             previous_state: Arc::new(Mutex::new(0)),
             task: None,
         };
 
-        spinner.start();
+        let previous_state = state.previous_state.clone();
+        let current_state = state.current_state.clone();
 
-        spinner
-    }
-
-    pub fn get_spin_state(&self) -> &'static str {
-        match self.current_state.try_lock() {
-            Ok(current_state) => Self::VALUES[*current_state as usize],
-            _ => match self.previous_state.try_lock() {
-                Ok(previous_state) => Self::VALUES[*previous_state as usize],
-                _ => Self::VALUES[0],
-            },
-        }
-    }
-
-    fn start(&mut self) {
-        if self.task.is_some() {
-            return;
-        }
-
-        let previous_state = self.previous_state.clone();
-        let current_state = self.current_state.clone();
-
-        self.task = Some(tokio::spawn(async move {
+        state.task = Some(tokio::spawn(async move {
             loop {
                 sleep(Self::SPIN_TICK_DURATION).await;
 
@@ -68,20 +84,21 @@ impl Spinner {
                 }
             }
         }));
+
+        self.state = Arc::new(Mutex::new(Some(state)));
     }
 
-    fn stop_task(&self) {
-        if let Some(task) = &self.task {
-            task.abort();
-        }
-    }
+    pub async fn stop(&mut self) {
+        loop {
+            let mut maybe_state = self.state.lock().await;
 
-    pub async fn stop(spinner: Arc<Mutex<Option<Spinner>>>) {
-        let mut spinner = spinner.lock().await;
-        if let Some(spinner) = spinner.as_ref() {
-            spinner.stop_task();
+            if let Some(state) = maybe_state.as_mut()
+                && let Some(task) = &state.task
+            {
+                task.abort();
+                *maybe_state = None;
+                break;
+            }
         }
-
-        *spinner = None;
     }
 }

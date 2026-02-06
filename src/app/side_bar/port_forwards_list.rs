@@ -33,7 +33,7 @@ pub struct PortForward {
     local_port: u16,
     app_port: u16,
     pid: Arc<Mutex<Option<u32>>>,
-    spinner: Arc<Mutex<Option<Spinner>>>,
+    spinner: Spinner,
     item_str: String,
 }
 
@@ -57,14 +57,8 @@ impl ListItemTrait for PortForward {
         &self.item_str
     }
 
-    fn is_loading(&self) -> Option<String> {
-        if let Ok(spinner) = self.spinner.try_lock() {
-            return spinner
-                .as_ref()
-                .map(|spinner| spinner.get_spin_state().to_owned());
-        }
-
-        None
+    fn spinner(&self) -> Option<String> {
+        Some(self.spinner.get_spin_state().to_owned())
     }
 }
 
@@ -98,7 +92,7 @@ impl From<PortForwardCache> for PortForward {
             pod_name: value.pod_name,
             app_port: value.app_port,
             pid: Arc::new(Mutex::new(value.pid)),
-            spinner: Arc::new(Mutex::new(None)),
+            spinner: Spinner::new(),
         }
     }
 }
@@ -205,7 +199,8 @@ impl PortForwardsList {
             return;
         }
 
-        let spinner = Spinner::new();
+        let mut spinner = Spinner::new();
+        spinner.start();
 
         let pod = PortForward {
             pid: Arc::new(Mutex::new(None)),
@@ -214,13 +209,13 @@ impl PortForwardsList {
             local_port,
             item_str: format!("{} -> {local_port}:{app_port}", pod_name),
             pod_name,
-            spinner: Arc::new(Mutex::new(Some(spinner))),
+            spinner: spinner.clone(),
         };
 
         let event_sender = self.event_sender.clone();
         let cloned_pod = pod.clone();
 
-        tokio::spawn(async {
+        tokio::spawn(async move {
             Self::port_forward(event_sender, cloned_pod).await;
         });
 
@@ -266,15 +261,10 @@ impl PortForwardsList {
                 }
             }
 
+            self.list.inner_list[selected].spinner.start();
+
             let pod = self.list.inner_list[selected].clone();
             let event_sender = self.event_sender.clone();
-
-            {
-                let spinner = Spinner::new();
-
-                let mut pod_spinner = pod.spinner.lock().await;
-                *pod_spinner = Some(spinner);
-            }
 
             tokio::spawn(async {
                 Self::port_forward(event_sender, pod).await;
@@ -303,7 +293,7 @@ impl PortForwardsList {
         }
     }
 
-    async fn port_forward(event_sender: EventSender, pod: PortForward) {
+    async fn port_forward(event_sender: EventSender, mut pod: PortForward) {
         let pid = match kubectl::start_port_forward(
             pod.namespace.as_str(),
             pod.pod_name.as_str(),
@@ -319,12 +309,12 @@ impl PortForwardsList {
                     err.to_string(),
                 )));
 
-                Spinner::stop(pod.spinner).await;
+                pod.spinner.stop().await;
                 return;
             }
         };
 
-        Spinner::stop(pod.spinner.clone()).await;
+        pod.spinner.stop().await;
 
         {
             let mut pod_pid = pod.pid.lock().await;
@@ -334,10 +324,7 @@ impl PortForwardsList {
         Self::run_port_forward_check_health_worker(pod.pid.clone(), pod.spinner.clone());
     }
 
-    fn run_port_forward_check_health_worker(
-        pid: Arc<Mutex<Option<u32>>>,
-        spinner: Arc<Mutex<Option<Spinner>>>,
-    ) {
+    fn run_port_forward_check_health_worker(pid: Arc<Mutex<Option<u32>>>, mut spinner: Spinner) {
         tokio::spawn(async move {
             loop {
                 {
@@ -357,7 +344,7 @@ impl PortForwardsList {
                         _ => {
                             *pid_guard = None;
 
-                            Spinner::stop(spinner).await;
+                            // spinner.stop().await;
                             break;
                         }
                     };

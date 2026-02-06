@@ -30,7 +30,7 @@ pub trait ListItemTrait {
         None
     }
 
-    fn is_loading(&self) -> Option<String> {
+    fn spinner(&self) -> Option<String> {
         None
     }
 }
@@ -133,7 +133,7 @@ where
                 // TODO: use Line
                 let mut span = Span::from(item.as_ref());
 
-                if let Some(spinner_text) = item.is_loading() {
+                if let Some(spinner_text) = item.spinner() {
                     let span_content = span.content;
                     span = Span::from(format!("{span_content} {spinner_text}"));
                 }
