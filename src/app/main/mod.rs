@@ -46,22 +46,9 @@ impl MainWindow {
         }
     }
 
-    pub async fn show_logs(&mut self, pod_name: String) -> AppResult<()> {
-        let logs = match PodLogs::load(pod_name).await {
-            Ok(logs) => logs,
-            Err(err) => {
-                self.event_sender
-                    .send(AppEvent::ShowNotification(Notification::error(
-                        err.to_string(),
-                    )));
-                return Ok(());
-            }
-        };
-
+    pub fn show_logs(&mut self, logs: PodLogs) {
         self.pod_logs = Some(logs);
         self.kind = MainWindowKind::Logs;
-
-        Ok(())
     }
 
     pub fn new(event_sender: EventSender) -> Self {
@@ -94,11 +81,11 @@ impl MainWindow {
         }
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) {
         match self.kind {
             MainWindowKind::Pods => {
                 if let Some(pods_list) = &mut self.pods_list {
-                    pods_list.handle_key_event(key);
+                    pods_list.handle_key_event(key).await;
                 }
             }
 

@@ -1,5 +1,7 @@
 mod port_forward_popup;
 
+use std::sync::Arc;
+
 use crossterm::event::KeyCode;
 
 use ratatui::{
@@ -8,21 +10,47 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Cell, Paragraph, Row, Table, TableState},
 };
+use tokio::sync::Mutex;
 
 use crate::{
     app::{
         cache::{PodsListCache, StateCache},
-        common::{build_block, get_highlight_style, handle_general_keys},
+        common::{Spinner, build_block, get_highlight_style},
         events::{AppEvent, EventSender},
-        main::pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
+        main::{
+            logs::PodLogs,
+            pods_list::port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
+        },
+        notification::Notification,
     },
     error::AppResult,
     kubectl::pods::{KnownPodStatus, Pod, PodStatus, get_pods_list},
 };
 
 #[derive(Debug, Clone)]
+struct PodWithSpinner {
+    pod: Pod,
+    spinner: Arc<Mutex<Option<Spinner>>>,
+}
+
+impl From<Pod> for PodWithSpinner {
+    fn from(value: Pod) -> Self {
+        Self {
+            pod: value,
+            spinner: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+impl From<PodWithSpinner> for Pod {
+    fn from(value: PodWithSpinner) -> Self {
+        Self { ..value.pod }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PodsList {
-    original_list: Vec<Pod>,
+    original_list: Vec<PodWithSpinner>,
     filtered_list: Vec<usize>,
     event_sender: EventSender,
     state: TableState,
@@ -39,13 +67,13 @@ impl From<PodsList> for PodsListCache {
             filter: value.filter,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
-            original_list: value.original_list,
+            original_list: value.original_list.into_iter().map(Into::into).collect(),
             longest_name: value.longest_name,
             namespace: value.namespace,
             state: StateCache {
                 selected: value.state.selected(),
             },
-            port_forward_popup: value.port_forward_popup.map(|i| i.into()),
+            port_forward_popup: value.port_forward_popup.map(Into::into),
         }
     }
 }
@@ -60,7 +88,7 @@ impl PodsList {
             event_sender,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
-            original_list: value.original_list,
+            original_list: value.original_list.into_iter().map(Into::into).collect(),
             longest_name: value.longest_name,
             namespace: value.namespace,
             state,
@@ -79,7 +107,7 @@ impl PodsList {
 
         self.longest_name = longest_name;
         self.filtered_list = pods.iter().enumerate().map(|(index, _)| index).collect();
-        self.original_list = pods;
+        self.original_list = pods.into_iter().map(Into::into).collect();
         self.state.select(Some(0));
 
         Ok(self)
@@ -113,10 +141,17 @@ impl PodsList {
             .iter()
             .map(|index| {
                 let item = &self.original_list[*index];
+                let maybe_spinner = item
+                    .spinner
+                    .try_lock()
+                    .map(|spinner| spinner.as_ref().map(|s| s.get_spin_state()).unwrap_or(" "))
+                    .unwrap_or(" ");
+
+                let pod_name = format!("{maybe_spinner} {}", item.pod.name.as_str());
 
                 Row::new([
-                    item.name.as_str().into(),
-                    get_status(&item.container_statuses, &item.reason),
+                    pod_name.into(),
+                    get_status(&item.pod.container_statuses, &item.pod.reason),
                 ])
             })
             .collect();
@@ -154,7 +189,7 @@ impl PodsList {
         }
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) {
         if let Some(port_forward_popup) = &mut self.port_forward_popup {
             if let Some(port_forward_popup_action) = port_forward_popup.handle_key_event(key) {
                 return match port_forward_popup_action {
@@ -163,10 +198,10 @@ impl PodsList {
                         app_port,
                     } => {
                         let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                        let pod = self.original_list[index].clone();
+                        let item = self.original_list[index].clone();
 
                         self.event_sender.send(AppEvent::PortForward {
-                            pod_name: pod.name,
+                            pod_name: item.pod.name,
                             local_port,
                             app_port,
                             namespace: self.namespace.clone(),
@@ -227,18 +262,46 @@ impl PodsList {
             KeyCode::Char('/') => self.is_filter_mod = true,
             KeyCode::Char('p') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                let pod_containers = self.original_list[index].containers.clone();
+                let pod_containers = self.original_list[index].pod.containers.clone();
                 self.port_forward_popup = Some(PortForwardPopup::new(pod_containers));
             }
             KeyCode::Char('l') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                let pod_container = self.original_list[index].name.clone();
+                let pod_container = &mut self.original_list[index];
 
-                self.event_sender.send(AppEvent::ShowLogs(pod_container));
+                pod_container.spinner = Arc::new(Mutex::new(Some(Spinner::new())));
+
+                let pod_name = pod_container.pod.name.clone();
+                Self::load_logs(
+                    pod_name,
+                    self.event_sender.clone(),
+                    pod_container.spinner.clone(),
+                );
             }
             KeyCode::Esc => self.event_sender.send(AppEvent::ClosePodsList),
             _ => {}
         };
+    }
+
+    fn load_logs(
+        pod_name: String,
+        event_sender: EventSender,
+        spinner: Arc<Mutex<Option<Spinner>>>,
+    ) {
+        tokio::spawn(async move {
+            let logs = match PodLogs::load(pod_name).await {
+                Ok(logs) => logs,
+                Err(err) => {
+                    event_sender.send(AppEvent::ShowNotification(Notification::error(
+                        err.to_string(),
+                    )));
+                    return;
+                }
+            };
+
+            event_sender.send(AppEvent::ShowLogs(logs));
+            Spinner::stop(spinner).await;
+        });
     }
 
     fn update_filtered_list(&mut self) {
@@ -246,7 +309,7 @@ impl PodsList {
             .original_list
             .iter()
             .enumerate()
-            .filter(|(_, item)| item.name.contains(self.filter.as_str()))
+            .filter(|(_, item)| item.pod.name.contains(self.filter.as_str()))
             .map(|(index, _)| index)
             .collect();
     }

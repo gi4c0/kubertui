@@ -319,12 +319,12 @@ impl PortForwardsList {
                     err.to_string(),
                 )));
 
-                Self::stop_spinner(pod.spinner).await;
+                Spinner::stop(pod.spinner).await;
                 return;
             }
         };
 
-        Self::stop_spinner(pod.spinner.clone()).await;
+        Spinner::stop(pod.spinner.clone()).await;
 
         {
             let mut pod_pid = pod.pid.lock().await;
@@ -332,15 +332,6 @@ impl PortForwardsList {
         }
 
         Self::run_port_forward_check_health_worker(pod.pid.clone(), pod.spinner.clone());
-    }
-
-    async fn stop_spinner(spinner: Arc<Mutex<Option<Spinner>>>) {
-        let mut spinner = spinner.lock().await;
-        if let Some(spinner) = spinner.as_ref() {
-            spinner.stop();
-        }
-
-        *spinner = None;
     }
 
     fn run_port_forward_check_health_worker(
@@ -366,7 +357,7 @@ impl PortForwardsList {
                         _ => {
                             *pid_guard = None;
 
-                            Self::stop_spinner(spinner).await;
+                            Spinner::stop(spinner).await;
                             break;
                         }
                     };

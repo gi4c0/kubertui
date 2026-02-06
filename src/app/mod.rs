@@ -101,7 +101,7 @@ impl App {
                 self.active_window = ActiveWindow::Main;
             }
 
-            AppEvent::ShowLogs(pod_name) => self.main.show_logs(pod_name).await?,
+            AppEvent::ShowLogs(logs) => self.main.show_logs(logs),
 
             AppEvent::PortForward {
                 pod_name,
@@ -169,7 +169,7 @@ impl App {
         }
 
         match &self.active_window {
-            ActiveWindow::Main => self.main.handle_key_event(key),
+            ActiveWindow::Main => self.main.handle_key_event(key).await,
             ActiveWindow::SideBar(side_bar) => self.side_bar.handle_key_event(key, *side_bar).await,
         }
     }

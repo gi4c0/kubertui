@@ -6,7 +6,7 @@ use ratatui::crossterm::{self, event::Event as CrosstermEvent};
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{ActiveWindow, notification::Notification},
+    app::{ActiveWindow, main::logs::PodLogs, notification::Notification},
     error::{AppError, AppResult},
 };
 
@@ -26,7 +26,7 @@ pub enum AppEvent {
         app_port: u16,
         namespace: String,
     },
-    ShowLogs(String),
+    ShowLogs(PodLogs),
     ClosePodsList,
     ShowNotification(Notification),
     HideNotification,

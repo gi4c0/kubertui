@@ -70,9 +70,18 @@ impl Spinner {
         }));
     }
 
-    pub fn stop(&self) {
+    fn stop_task(&self) {
         if let Some(task) = &self.task {
             task.abort();
         }
+    }
+
+    pub async fn stop(spinner: Arc<Mutex<Option<Spinner>>>) {
+        let mut spinner = spinner.lock().await;
+        if let Some(spinner) = spinner.as_ref() {
+            spinner.stop_task();
+        }
+
+        *spinner = None;
     }
 }
