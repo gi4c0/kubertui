@@ -169,6 +169,8 @@ impl PodLogs {
                     if self.filters.is_empty() {
                         self.edit_filters_mod = false;
                     }
+
+                    self.update_filtered_list();
                 }
 
                 KeyCode::Esc | KeyCode::Enter => self.edit_filters_mod = false,
