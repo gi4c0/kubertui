@@ -17,26 +17,7 @@ pub struct LogItem {
 
 impl LogItem {
     pub fn new(log_item: String, pod_name: String) -> Self {
-        let text = if let Ok(value) = serde_json::from_str::<Value>(&log_item)
-            && let Some(object) = value.as_object()
-        {
-            let lines: Vec<String> = object
-                .iter()
-                .map(|(key, value)| {
-                    if let Some((before_json, maybe_inner_json, after_json)) =
-                        Self::find_and_format_json(value)
-                    {
-                        format!("{key}: {before_json}\n{maybe_inner_json}\n{after_json}")
-                    } else {
-                        format!("{key}: {value}\n")
-                    }
-                })
-                .collect();
-
-            lines.join("\n")
-        } else {
-            log_item
-        };
+        let text = Self::format_log(log_item);
 
         Self {
             text,
@@ -55,6 +36,26 @@ impl LogItem {
         frame.render_widget(paragraph, area);
     }
 
+    fn format_log(log_item: String) -> String {
+        if let Ok(value) = serde_json::from_str::<Value>(log_item.as_str())
+            && let Some(object) = value.as_object()
+        {
+            let lines: Vec<String> = object
+                .iter()
+                .map(|(key, value)| {
+                    let pretty_json =
+                        Self::find_and_format_json(value).unwrap_or_else(|| value.to_string());
+
+                    format!("{key}: {pretty_json}")
+                })
+                .collect();
+
+            return lines.join("\n");
+        }
+
+        log_item
+    }
+
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return true,
@@ -70,24 +71,69 @@ impl LogItem {
         false
     }
 
-    fn find_and_format_json(value: &Value) -> Option<(String, String, String)> {
-        if let Some(str_value) = value.as_str()
-            && let Some(first_bracket_index) = str_value.chars().position(|ch| ch == '{')
-            && let Some(last_bracket_index) = str_value.chars().rev().position(|ch| ch == '}')
-        {
-            let last_bracket_index = str_value.len() - 1 - last_bracket_index + 1;
+    fn find_and_format_json(value: &Value) -> Option<String> {
+        let str_value: &str = value.as_str()?;
 
-            let before_json = &str_value[0..first_bracket_index];
-            let maybe_inner_json = &str_value[first_bracket_index..last_bracket_index];
-            let after_json = &str_value[last_bracket_index..];
+        let mut result = String::new();
+        let mut cursor: usize = 0;
 
-            if let Ok(json_value) = serde_json::from_str::<Value>(maybe_inner_json)
-                && let Ok(pretty) = serde_json::to_string_pretty(&json_value)
+        loop {
+            let current_str = &str_value[cursor..];
+
+            let first_bracket_index = match current_str.chars().position(|ch| ch == '{') {
+                Some(index) => index,
+                None => {
+                    result.push_str(current_str);
+                    break;
+                }
+            };
+            let last_bracket_index = Self::find_closing_bracket_index(current_str)?;
+
+            if let Ok(json_value) = serde_json::from_str::<Value>(
+                &current_str[first_bracket_index..last_bracket_index + 1],
+            ) && let Ok(pretty) = serde_json::to_string_pretty(&json_value)
             {
-                return Some((before_json.to_owned(), pretty, after_json.to_owned()));
+                result.push_str(&current_str[0..first_bracket_index]);
+                result.push('\n');
+
+                result.push_str(&pretty);
+                result.push('\n');
+
+                if last_bracket_index == current_str.len() - 1 {
+                    break;
+                }
+
+                cursor = last_bracket_index + 1;
+            } else {
+                result.push(current_str.chars().next()?);
+                cursor += 1;
             }
         }
 
-        None
+        Some(result)
+    }
+
+    fn find_closing_bracket_index(data: &str) -> Option<usize> {
+        let mut bracket_stack = vec![];
+        let mut result: Option<usize> = None;
+
+        for (index, char) in data.chars().enumerate() {
+            match char {
+                '{' => {
+                    bracket_stack.push('{');
+                }
+                '}' => {
+                    bracket_stack.pop();
+
+                    if bracket_stack.is_empty() {
+                        result = Some(index);
+                        break;
+                    }
+                }
+                _ => {}
+            };
+        }
+
+        result
     }
 }
