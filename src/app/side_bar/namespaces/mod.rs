@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         cache::NamespacesCache,
+        common::{HelpItem, HelpMenu},
         events::EventSender,
         side_bar::namespaces::{
             namespaces_list::NamespacesList, recent_namespaces::RecentNamespacesList,
@@ -103,4 +104,47 @@ impl Namespaces {
             _ => {}
         }
     }
+}
+
+fn get_help_menu() -> HelpMenu {
+    let help_items = vec![
+        HelpItem {
+            key: "j".to_string(),
+            desc: String::from("Select below item"),
+        },
+        HelpItem {
+            key: "<Down>".to_string(),
+            desc: String::from("Select below item"),
+        },
+        HelpItem {
+            key: "k".to_string(),
+            desc: String::from("Select above item"),
+        },
+        HelpItem {
+            key: "<Down>".to_string(),
+            desc: String::from("Select above item"),
+        },
+        HelpItem {
+            key: String::from("/"),
+            desc: String::from("Search"),
+        },
+        HelpItem {
+            key: String::from("<Esc> (in search)"),
+            desc: String::from("Reset Search"),
+        },
+        HelpItem {
+            key: String::from("["),
+            desc: String::from("Select next submenu"),
+        },
+        HelpItem {
+            key: String::from("]"),
+            desc: String::from("Select prev submenu"),
+        },
+        HelpItem {
+            key: String::from("<Enter>"),
+            desc: String::from("Load pods for selected namespace"),
+        },
+    ];
+
+    HelpMenu::new(String::from("SideBar"), help_items)
 }

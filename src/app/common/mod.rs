@@ -1,9 +1,11 @@
 mod filterable_list;
 mod general_key_handler;
+mod help_menu;
 mod spinner;
 
 pub use filterable_list::*;
 pub use general_key_handler::*;
+pub use help_menu::*;
 pub use spinner::*;
 
 use ratatui::{
