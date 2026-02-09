@@ -1,3 +1,5 @@
+mod help;
+
 use std::{process::Command, sync::Arc, time::Duration};
 
 use crossterm::event::KeyCode;
@@ -13,9 +15,12 @@ use tokio::{sync::Mutex, time::sleep};
 use crate::{
     app::{
         cache::{PortForwardCache, PortForwardsListCache},
-        common::{FilterableList, ListEvent, ListItemTrait, Spinner, handle_general_keys},
+        common::{
+            FilterableList, HelpMenu, ListEvent, ListItemTrait, Spinner, handle_general_keys,
+        },
         events::{AppEvent, EventSender},
         notification::{LogLevel, Notification},
+        side_bar::port_forwards_list::help::get_help_menu,
     },
     kubectl,
 };
@@ -24,6 +29,7 @@ use crate::{
 pub struct PortForwardsList {
     list: FilterableList<PortForward>,
     event_sender: EventSender,
+    help_menu: HelpMenu,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -113,6 +119,7 @@ impl PortForwardsList {
         state.select(Some(1));
 
         Self {
+            help_menu: get_help_menu(),
             event_sender,
             list: FilterableList::new("Recent Port Forwards".to_string(), true),
         }
@@ -152,7 +159,11 @@ impl PortForwardsList {
             })
             .collect();
 
-        Self { list, event_sender }
+        Self {
+            list,
+            event_sender,
+            help_menu: get_help_menu(),
+        }
     }
 
     fn check_pid(pid: u32) -> Result<bool, String> {
@@ -224,6 +235,7 @@ impl PortForwardsList {
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         self.list.draw(area, frame, is_focused);
+        self.help_menu.draw(frame);
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {

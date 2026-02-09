@@ -1,10 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::Alignment;
 use ratatui::text::Line;
 use ratatui::{
     Frame,
     layout::Constraint,
-    style::Style,
     widgets::{Cell, Clear, Row, Table, TableState},
 };
 
@@ -26,11 +24,13 @@ pub struct HelpMenu {
     title: String,
     state: TableState,
     is_filter_mod: bool,
+    show_widget: bool,
 }
 
 impl HelpMenu {
     pub fn new(menu_name: String, help_items: Vec<HelpItem>) -> Self {
         Self {
+            show_widget: false,
             longest_key_len: help_items
                 .iter()
                 .map(|item| item.key.len())
@@ -50,7 +50,19 @@ impl HelpMenu {
         }
     }
 
+    pub fn toggle_show_widget(&mut self) {
+        self.show_widget = !self.show_widget;
+    }
+
+    pub fn should_show_widget(&self) -> bool {
+        self.show_widget
+    }
+
     pub fn draw(&mut self, frame: &mut Frame) {
+        if !self.show_widget {
+            return;
+        }
+
         let header: Row = Row::new([
             Cell::from(Line::from("Key").centered()),
             Cell::from("   "),
@@ -87,6 +99,10 @@ impl HelpMenu {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+        if !self.show_widget {
+            return false;
+        }
+
         if self.is_filter_mod {
             match key.code {
                 KeyCode::Enter => {
@@ -116,18 +132,20 @@ impl HelpMenu {
                 _ => {}
             };
 
-            return false;
+            return true;
         }
 
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => return true,
+            KeyCode::Char('q') | KeyCode::Esc => {
+                self.show_widget = false;
+            }
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('/') => self.is_filter_mod = true,
             _ => {}
         };
 
-        false
+        true
     }
 
     fn select_next(&mut self) {
