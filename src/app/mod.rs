@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         cache::AppCache,
+        common::HelpMenu,
         events::{AppEvent, EventHandler},
         main::{MainWindow, MainWindowKind},
         notification::NotificationWidget,
@@ -36,6 +37,7 @@ pub struct App {
     active_window: ActiveWindow,
     event_handler: EventHandler,
     notification: Option<NotificationWidget>,
+    help_menu: HelpMenu,
 }
 
 impl App {
@@ -76,6 +78,10 @@ impl App {
 
         if let Some(notification) = &mut self.notification {
             notification.draw(frame);
+        }
+
+        if self.help_menu.is_shown() {
+            self.help_menu.draw(frame);
         }
     }
 
@@ -157,6 +163,10 @@ impl App {
                     _ => self.active_window,
                 }
             }
+
+            AppEvent::ShowHelp(kind) => {
+                self.help_menu.show(kind);
+            }
         }
 
         Ok(())
@@ -165,6 +175,11 @@ impl App {
     async fn handle_key_event(&mut self, key: KeyEvent) {
         if let Some(notification) = &mut self.notification {
             notification.handle_key_event(key);
+            return;
+        }
+
+        if self.help_menu.is_shown() {
+            self.help_menu.handle_key_event(key);
             return;
         }
 
@@ -187,6 +202,7 @@ impl Default for App {
 
         Self {
             active_window: ActiveWindow::SideBar(SideBarWindow::Namespaces),
+            help_menu: HelpMenu::default(),
             side_bar: SideBar::new(event_handler.sender()),
             exit: false,
             main: MainWindow::new(event_handler.sender()),

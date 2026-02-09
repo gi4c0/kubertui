@@ -12,7 +12,7 @@ use ratatui::{
 use crate::{
     app::{
         cache::{PodsListCache, StateCache},
-        common::{Spinner, build_block, get_highlight_style},
+        common::{HelpMenuEnum, Spinner, build_block, get_highlight_style},
         events::{AppEvent, EventSender},
         main::{
             logs::PodLogs,
@@ -258,6 +258,11 @@ impl PodsList {
                 let pod_containers = self.original_list[index].pod.containers.clone();
                 self.port_forward_popup = Some(PortForwardPopup::new(pod_containers));
             }
+
+            KeyCode::Char('?') => self
+                .event_sender
+                .send(AppEvent::ShowHelp(HelpMenuEnum::Pods)),
+
             KeyCode::Char('l') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
                 let pod_container = &mut self.original_list[index];
@@ -278,7 +283,7 @@ impl PodsList {
 
     fn load_logs(pod_name: String, event_sender: EventSender, mut spinner: Spinner) {
         tokio::spawn(async move {
-            let logs = match PodLogs::load(pod_name).await {
+            let logs = match PodLogs::load(pod_name, event_sender.clone()).await {
                 Ok(logs) => logs,
                 Err(err) => {
                     spinner.stop().await;

@@ -12,7 +12,8 @@ use serde_json::Value;
 
 use crate::{
     app::{
-        common::{FOCUS_COLOR, build_block},
+        common::{FOCUS_COLOR, HelpMenuEnum, build_block},
+        events::{AppEvent, EventSender},
         main::logs::log_item::LogItem,
     },
     error::AppResult,
@@ -22,6 +23,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct PodLogs {
     pod_name: String,
+    event_sender: EventSender,
     logs: Vec<String>,
     state: ListState,
     filtered_list: Vec<usize>,
@@ -33,7 +35,7 @@ pub struct PodLogs {
 }
 
 impl PodLogs {
-    pub async fn load(pod_name: String) -> AppResult<Self> {
+    pub async fn load(pod_name: String, event_sender: EventSender) -> AppResult<Self> {
         let mut logs = kubectl::load_logs(pod_name.as_str()).await?;
         logs.reverse();
 
@@ -53,6 +55,7 @@ impl PodLogs {
 
         Ok(Self {
             selected_log: None,
+            event_sender,
             active_filter_index: 0,
             filters: Vec::new(),
             add_new_filter_mod: false,
@@ -248,6 +251,10 @@ impl PodLogs {
                     self.state.select(Some(0));
                 }
             }
+
+            KeyCode::Char('?') => self
+                .event_sender
+                .send(AppEvent::ShowHelp(HelpMenuEnum::Namespaces)),
 
             KeyCode::Enter => {
                 if let Some(selected) = self.state.selected() {

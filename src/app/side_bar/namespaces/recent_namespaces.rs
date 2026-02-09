@@ -3,16 +3,14 @@ use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 
 use crate::app::{
     cache::RecentNamespacesListCache,
-    common::{FilterableList, HelpMenu, ListEvent, handle_general_keys},
+    common::{FilterableList, HelpMenuEnum, ListEvent, handle_general_keys},
     events::{AppEvent, EventSender},
-    side_bar::namespaces::get_help_menu,
 };
 
 #[derive(Debug, Clone)]
 pub struct RecentNamespacesList {
     recent_namespaces_list: FilterableList<String>,
     event_sender: EventSender,
-    help_menu: HelpMenu,
 }
 
 impl From<RecentNamespacesList> for RecentNamespacesListCache {
@@ -26,7 +24,6 @@ impl From<RecentNamespacesList> for RecentNamespacesListCache {
 impl RecentNamespacesList {
     pub fn from_cache(value: RecentNamespacesListCache, event_sender: EventSender) -> Self {
         Self {
-            help_menu: get_help_menu(),
             event_sender,
             recent_namespaces_list: value.recent_namespaces_list.into(),
         }
@@ -35,7 +32,6 @@ impl RecentNamespacesList {
     pub fn new(event_sender: EventSender) -> Self {
         Self {
             event_sender,
-            help_menu: get_help_menu(),
             recent_namespaces_list: FilterableList::new("Recent Namespaces".to_string(), false),
         }
     }
@@ -62,14 +58,9 @@ impl RecentNamespacesList {
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         self.recent_namespaces_list.draw(area, frame, is_focused);
-        self.help_menu.draw(frame);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
-        if self.help_menu.handle_key_event(key) {
-            return false;
-        }
-
         if let Some(list_event) = self.recent_namespaces_list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
@@ -84,7 +75,9 @@ impl RecentNamespacesList {
         }
 
         if let KeyCode::Char('?') = key.code {
-            self.help_menu.toggle_show_widget();
+            self.event_sender
+                .send(AppEvent::ShowHelp(HelpMenuEnum::RecentNamespaces));
+            return true;
         }
 
         if handle_general_keys(key, &self.event_sender) {

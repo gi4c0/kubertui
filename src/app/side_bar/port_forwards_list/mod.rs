@@ -1,5 +1,3 @@
-mod help;
-
 use std::{process::Command, sync::Arc, time::Duration};
 
 use crossterm::event::KeyCode;
@@ -16,11 +14,10 @@ use crate::{
     app::{
         cache::{PortForwardCache, PortForwardsListCache},
         common::{
-            FilterableList, HelpMenu, ListEvent, ListItemTrait, Spinner, handle_general_keys,
+            FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner, handle_general_keys,
         },
         events::{AppEvent, EventSender},
         notification::{LogLevel, Notification},
-        side_bar::port_forwards_list::help::get_help_menu,
     },
     kubectl,
 };
@@ -29,7 +26,6 @@ use crate::{
 pub struct PortForwardsList {
     list: FilterableList<PortForward>,
     event_sender: EventSender,
-    help_menu: HelpMenu,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -119,7 +115,6 @@ impl PortForwardsList {
         state.select(Some(1));
 
         Self {
-            help_menu: get_help_menu(),
             event_sender,
             list: FilterableList::new("Recent Port Forwards".to_string(), true),
         }
@@ -159,11 +154,7 @@ impl PortForwardsList {
             })
             .collect();
 
-        Self {
-            list,
-            event_sender,
-            help_menu: get_help_menu(),
-        }
+        Self { list, event_sender }
     }
 
     fn check_pid(pid: u32) -> Result<bool, String> {
@@ -235,7 +226,6 @@ impl PortForwardsList {
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
         self.list.draw(area, frame, is_focused);
-        self.help_menu.draw(frame);
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {
@@ -257,6 +247,9 @@ impl PortForwardsList {
                 self.toggle_port_forward().await;
             }
             KeyCode::Char('d') | KeyCode::Backspace => self.delete_item().await,
+            KeyCode::Char('?') => self
+                .event_sender
+                .send(AppEvent::ShowHelp(HelpMenuEnum::RecentPortForwards)),
             _ => {}
         };
     }
@@ -333,10 +326,10 @@ impl PortForwardsList {
             *pod_pid = Some(pid);
         }
 
-        Self::run_port_forward_check_health_worker(pod.pid.clone(), pod.spinner.clone());
+        Self::run_port_forward_check_health_worker(pod.pid.clone());
     }
 
-    fn run_port_forward_check_health_worker(pid: Arc<Mutex<Option<u32>>>, mut spinner: Spinner) {
+    fn run_port_forward_check_health_worker(pid: Arc<Mutex<Option<u32>>>) {
         tokio::spawn(async move {
             loop {
                 {
@@ -355,8 +348,6 @@ impl PortForwardsList {
                         Ok(is_active) if is_active => {}
                         _ => {
                             *pid_guard = None;
-
-                            // spinner.stop().await;
                             break;
                         }
                     };
