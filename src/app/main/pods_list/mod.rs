@@ -94,7 +94,7 @@ impl PodsList {
     }
 
     pub async fn load(mut self) -> AppResult<Self> {
-        let pods = get_pods_list(self.namespace.as_str())?;
+        let pods = get_pods_list(self.namespace.as_str()).await?;
 
         let longest_name = pods
             .iter()

@@ -113,7 +113,14 @@ where
         }
     }
 
+    fn reset_filter(&mut self) {
+        self.filter = String::new();
+        self.update_filtered_list();
+    }
+
     pub fn set_items(&mut self, new_list: Vec<Item>) {
+        self.reset_filter();
+
         self.filtered_list = new_list
             .iter()
             .enumerate()

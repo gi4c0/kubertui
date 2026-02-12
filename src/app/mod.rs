@@ -46,7 +46,7 @@ impl App {
 
         match cache {
             Some(cache) => self.merge_cache(cache),
-            None => self.initial_load()?,
+            None => self.initial_load().await?,
         };
 
         while !self.exit {
@@ -57,8 +57,8 @@ impl App {
         Ok(())
     }
 
-    fn initial_load(&mut self) -> AppResult<()> {
-        self.side_bar.initial_load()
+    async fn initial_load(&mut self) -> AppResult<()> {
+        self.side_bar.initial_load().await
     }
 
     fn draw(&mut self, frame: &mut Frame) {

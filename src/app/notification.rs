@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -44,10 +46,10 @@ impl Notification {
         }
     }
 
-    pub fn error(message: String) -> Self {
+    pub fn error<T: Display>(message: T) -> Self {
         Self {
             level: LogLevel::Error,
-            message,
+            message: message.to_string(),
         }
     }
 }

@@ -39,8 +39,8 @@ impl From<SideBar> for SideBarCache {
 }
 
 impl SideBar {
-    pub fn initial_load(&mut self) -> AppResult<()> {
-        self.namespaces.initial_load()
+    pub async fn initial_load(&mut self) -> AppResult<()> {
+        self.namespaces.load_namespaces().await
     }
 
     pub fn from_cache(value: SideBarCache, event_sender: EventSender) -> Self {
@@ -75,7 +75,7 @@ impl SideBar {
 
     pub async fn handle_key_event(&mut self, key: KeyEvent, side_bar: SideBarWindow) {
         match side_bar {
-            SideBarWindow::Namespaces => self.namespaces.handle_key_event(key),
+            SideBarWindow::Namespaces => self.namespaces.handle_key_event(key).await,
             SideBarWindow::RecentPortForwards => self.port_forwards.handle_key_event(key).await,
         };
     }

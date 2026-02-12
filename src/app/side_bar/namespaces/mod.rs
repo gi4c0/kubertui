@@ -5,14 +5,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         cache::NamespacesCache,
-        common::{HelpItem, HelpMenu},
         events::EventSender,
         side_bar::namespaces::{
             namespaces_list::NamespacesList, recent_namespaces::RecentNamespacesList,
         },
     },
     error::AppResult,
-    kubectl::namespace,
 };
 
 pub mod namespaces_list;
@@ -47,10 +45,8 @@ impl Namespaces {
         self.recent.add_to_list(new_name_space);
     }
 
-    pub fn initial_load(&mut self) -> AppResult<()> {
-        let list = namespace::get_namespaces()?;
-        self.full_list.update_list(list);
-        Ok(())
+    pub async fn load_namespaces(&mut self) -> AppResult<()> {
+        self.full_list.load_namespaces().await
     }
 
     pub fn from_cache(value: NamespacesCache, event_sender: EventSender) -> Self {
@@ -85,10 +81,10 @@ impl Namespaces {
         }
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) {
         match self.kind {
             NamespacesWindowKind::All => {
-                if self.full_list.handle_key_event(key) {
+                if self.full_list.handle_key_event(key).await {
                     return;
                 }
             }

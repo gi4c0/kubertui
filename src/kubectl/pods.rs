@@ -24,11 +24,12 @@ impl ListItemTrait for PodContainer {
     }
 }
 
-pub fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
+pub async fn get_pods_list(namespace: &str) -> AppResult<Vec<Pod>> {
     let parsed: ApiResponse = run_kubectl_command(
         "kubectl",
         vec!["get", "pods", "-n", namespace, "-o", "json"],
-    )?;
+    )
+    .await?;
 
     Ok(parsed
         .items
