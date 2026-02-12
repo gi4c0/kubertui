@@ -246,6 +246,11 @@ impl PodLogs {
                     self.state.select(Some(self.filtered_list.len() - 1));
                 }
             }
+
+            KeyCode::Tab | KeyCode::BackTab => {
+                self.event_sender.send(AppEvent::FocusSwitch);
+            }
+
             KeyCode::Char('g') => {
                 if !self.filtered_list.is_empty() {
                     self.state.select(Some(0));
@@ -261,7 +266,11 @@ impl PodLogs {
                     let index = &self.filtered_list[selected];
                     let log = &self.logs[*index];
 
-                    self.selected_log = Some(LogItem::new(log.clone(), self.pod_name.clone()));
+                    self.selected_log = Some(LogItem::new(
+                        log.clone(),
+                        self.pod_name.clone(),
+                        self.event_sender.clone(),
+                    ));
                 }
             }
             _ => return false,

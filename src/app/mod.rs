@@ -38,9 +38,39 @@ pub struct App {
     event_handler: EventHandler,
     notification: Option<NotificationWidget>,
     help_menu: HelpMenu,
+    last_active_sidebar: SideBarWindow,
 }
 
 impl App {
+    const FOCUS_ORDER: [ActiveWindow; 2] = [
+        ActiveWindow::SideBar(SideBarWindow::Namespaces),
+        ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
+    ];
+
+    fn next_focus(&self) -> ActiveWindow {
+        let active_index = Self::FOCUS_ORDER
+            .iter()
+            .position(|item| *item == self.active_window)
+            .unwrap_or(0);
+
+        *Self::FOCUS_ORDER
+            .get(active_index + 1)
+            .unwrap_or(Self::FOCUS_ORDER.first().unwrap())
+    }
+
+    fn prev_focus(&self) -> ActiveWindow {
+        let active_index = Self::FOCUS_ORDER
+            .iter()
+            .position(|item| *item == self.active_window)
+            .unwrap_or(0);
+
+        if active_index == 0 {
+            return *Self::FOCUS_ORDER.last().unwrap();
+        }
+
+        *Self::FOCUS_ORDER.get(active_index - 1).unwrap()
+    }
+
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
         let cache = cache::read_cache().await;
 
@@ -134,35 +164,18 @@ impl App {
             AppEvent::HideNotification => self.notification = None,
             AppEvent::Focus(active_window) => self.active_window = active_window,
 
-            AppEvent::FocusNext => {
+            AppEvent::FocusSwitch => {
                 self.active_window = match self.active_window {
-                    // ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::Namespaces),
-                    ActiveWindow::SideBar(side_bar) => match side_bar {
-                        SideBarWindow::Namespaces => {
-                            ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
-                        }
-                        SideBarWindow::RecentPortForwards => {
-                            ActiveWindow::SideBar(SideBarWindow::Namespaces)
-                        }
-                    },
-                    _ => self.active_window,
+                    ActiveWindow::Main => ActiveWindow::SideBar(self.last_active_sidebar),
+                    ActiveWindow::SideBar(side_bar) => {
+                        self.last_active_sidebar = side_bar;
+                        ActiveWindow::Main
+                    }
                 }
             }
 
-            AppEvent::FocusPrev => {
-                self.active_window = match self.active_window {
-                    // ActiveWindow::Main => ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
-                    ActiveWindow::SideBar(side_bar) => match side_bar {
-                        SideBarWindow::Namespaces => {
-                            ActiveWindow::SideBar(SideBarWindow::RecentPortForwards)
-                        }
-                        SideBarWindow::RecentPortForwards => {
-                            ActiveWindow::SideBar(SideBarWindow::Namespaces)
-                        }
-                    },
-                    _ => self.active_window,
-                }
-            }
+            AppEvent::FocusNext => self.active_window = self.next_focus(),
+            AppEvent::FocusPrev => self.active_window = self.prev_focus(),
 
             AppEvent::ShowHelp(kind) => {
                 self.help_menu.show(kind);
@@ -202,6 +215,7 @@ impl Default for App {
 
         Self {
             active_window: ActiveWindow::SideBar(SideBarWindow::Namespaces),
+            last_active_sidebar: SideBarWindow::Namespaces,
             help_menu: HelpMenu::default(),
             side_bar: SideBar::new(event_handler.sender()),
             exit: false,

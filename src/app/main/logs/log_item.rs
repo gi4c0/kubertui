@@ -6,21 +6,26 @@ use ratatui::{
 };
 use serde_json::Value;
 
-use crate::app::common::build_block;
+use crate::app::{
+    common::build_block,
+    events::{AppEvent, EventSender},
+};
 
 #[derive(Debug, Clone)]
 pub struct LogItem {
     text: String,
     pod_name: String,
     scroll: u16,
+    event_sender: EventSender,
 }
 
 impl LogItem {
-    pub fn new(log_item: String, pod_name: String) -> Self {
+    pub fn new(log_item: String, pod_name: String, event_sender: EventSender) -> Self {
         let text = Self::format_log(log_item);
 
         Self {
             text,
+            event_sender,
             pod_name,
             scroll: 0,
         }
@@ -60,6 +65,9 @@ impl LogItem {
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return true,
             KeyCode::Char('j') | KeyCode::Down => self.scroll += 1,
+            KeyCode::Tab | KeyCode::BackTab => {
+                self.event_sender.send(AppEvent::FocusSwitch);
+            }
             KeyCode::Char('k') | KeyCode::Up => {
                 if self.scroll > 0 {
                     self.scroll -= 1;

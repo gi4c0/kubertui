@@ -263,6 +263,10 @@ impl PodsList {
                 .event_sender
                 .send(AppEvent::ShowHelp(HelpMenuEnum::Pods)),
 
+            KeyCode::Tab | KeyCode::BackTab => {
+                self.event_sender.send(AppEvent::FocusSwitch);
+            }
+
             KeyCode::Char('l') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
                 let pod_container = &mut self.original_list[index];

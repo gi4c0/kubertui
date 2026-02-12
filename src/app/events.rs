@@ -18,6 +18,7 @@ pub enum AppEvent {
     Focus(ActiveWindow),
     FocusNext,
     FocusPrev,
+    FocusSwitch,
     Quit,
     SelectNamespace(String),
     PortForward {

@@ -15,11 +15,12 @@ pub fn handle_general_keys(key: KeyEvent, event_sender: &EventSender) -> bool {
             SideBarWindow::RecentPortForwards,
         ))),
         KeyCode::Char('3') => event_sender.send(AppEvent::Focus(ActiveWindow::Main)),
-        KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') => {
-            event_sender.send(AppEvent::FocusNext)
-        }
-        KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h') => {
-            event_sender.send(AppEvent::FocusPrev)
+
+        KeyCode::Right | KeyCode::Char('l') => event_sender.send(AppEvent::FocusNext),
+        KeyCode::Left | KeyCode::Char('h') => event_sender.send(AppEvent::FocusPrev),
+
+        KeyCode::Tab | KeyCode::BackTab => {
+            event_sender.send(AppEvent::FocusSwitch);
         }
 
         _ => return false,
