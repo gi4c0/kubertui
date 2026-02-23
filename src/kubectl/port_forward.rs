@@ -16,7 +16,7 @@ use crate::{
     files::{ERROR_FILE_PATH, INFO_FILE_PATH, ensure_app_dir},
 };
 
-const TIME_OUT_SECONDS: u64 = 5;
+const TIME_OUT_SECONDS: u64 = 10;
 
 pub async fn start_port_forward(
     namespace: &str,
@@ -34,31 +34,21 @@ pub async fn start_port_forward(
         .await
         .context("Failed to create a port_forward_error file")?;
 
-    let mut child = unsafe {
-        Command::new("kubectl")
-            .args([
-                "port-forward",
-                pod_name,
-                format!("{}:{}", local_port, app_port).as_str(),
-                "-n",
-                namespace,
-            ])
-            .stdin(Stdio::null())
-            .stdout(info_log_file.into_std().await)
-            .stderr(error_log_file.into_std().await)
-            .pre_exec(|| {
-                // Try to create a new session
-                // This call is unsafe because it runs in the child process after fork but before exec.
-                let pid = libc::setsid();
-                if pid == -1 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                Ok(())
-            })
-            .spawn()
-            .context("Failed to start port-forward process")
-            .map_err(AppError::PortForwardError)?
-    };
+    let mut child = Command::new("kubectl")
+        .kill_on_drop(true)
+        .args([
+            "port-forward",
+            pod_name,
+            format!("{}:{}", local_port, app_port).as_str(),
+            "-n",
+            namespace,
+        ])
+        .stdin(Stdio::null())
+        .stdout(info_log_file.into_std().await)
+        .stderr(error_log_file.into_std().await)
+        .spawn()
+        .context("Failed to start port-forward process")
+        .map_err(AppError::PortForwardError)?;
 
     let mut buf_reader = BufReader::new(
         File::open(INFO_FILE_PATH)
