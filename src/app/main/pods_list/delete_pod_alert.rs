@@ -30,7 +30,7 @@ impl DeletePodAlert {
             .title_bottom("<Enter>    <Esc>")
             .title_alignment(Alignment::Center);
 
-        let area = centered_rect(frame.area(), self.pod_name.len() as u16 + 2, 3);
+        let area = centered_rect(frame.area(), self.pod_name.len() as u16 + 15, 3);
 
         let paragraph = {
             let line = Line::default().spans(vec![

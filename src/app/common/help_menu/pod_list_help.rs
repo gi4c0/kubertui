@@ -1,6 +1,6 @@
 use crate::app::common::HelpItem;
 
-pub const HELP_ITEMS: [HelpItem; 8] = [
+pub const HELP_ITEMS: [HelpItem; 9] = [
     HelpItem {
         key: "j",
         desc: "Select below item",
@@ -16,6 +16,10 @@ pub const HELP_ITEMS: [HelpItem; 8] = [
     HelpItem {
         key: "<Down>",
         desc: "Select above item",
+    },
+    HelpItem {
+        key: "d",
+        desc: "Delete pod",
     },
     HelpItem {
         key: "/",

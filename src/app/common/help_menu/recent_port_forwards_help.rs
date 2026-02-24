@@ -1,6 +1,6 @@
 use crate::app::common::HelpItem;
 
-pub const HELP_ITEMS: [HelpItem; 5] = [
+pub const HELP_ITEMS: [HelpItem; 9] = [
     HelpItem {
         key: "j",
         desc: "Select below item",
@@ -16,6 +16,22 @@ pub const HELP_ITEMS: [HelpItem; 5] = [
     HelpItem {
         key: "<Down>",
         desc: "Select above item",
+    },
+    HelpItem {
+        key: "l",
+        desc: "Select next block in submenu",
+    },
+    HelpItem {
+        key: "<right>",
+        desc: "Select next block in submenu",
+    },
+    HelpItem {
+        key: "h",
+        desc: "Select previous block in submenu",
+    },
+    HelpItem {
+        key: "<left>",
+        desc: "Select previous block in submenu",
     },
     HelpItem {
         key: "<Space>",

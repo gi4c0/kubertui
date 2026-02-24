@@ -5,9 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         cache::MainWindowCache,
-        events::{AppEvent, EventSender},
+        events::EventSender,
         main::{logs::PodLogs, pods_list::PodsList},
-        notification::Notification,
     },
     error::AppResult,
 };
@@ -39,13 +38,6 @@ impl From<MainWindow> for MainWindowCache {
 }
 
 impl MainWindow {
-    pub fn is_empty(&self) -> bool {
-        match self.kind {
-            MainWindowKind::Pods => self.pods_list.is_none(),
-            MainWindowKind::Logs => self.pod_logs.is_none(),
-        }
-    }
-
     pub fn show_logs(&mut self, logs: PodLogs) {
         self.pod_logs = Some(logs);
         self.kind = MainWindowKind::Logs;
