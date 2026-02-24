@@ -61,12 +61,10 @@ impl MainWindow {
     }
 
     pub async fn load_pods(&mut self, namespace: String) -> AppResult<()> {
-        self.pods_list = Some(
-            PodsList::new(self.event_sender.clone(), namespace)
-                .load()
-                .await?,
-        );
+        let mut pod_list = PodsList::new(self.event_sender.clone(), namespace);
+        pod_list.load().await?;
 
+        self.pods_list = Some(pod_list);
         Ok(())
     }
 

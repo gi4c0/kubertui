@@ -4,12 +4,14 @@ use tokio::process::Command;
 
 use crate::error::{AppError, AppResult};
 
+mod delete_pod;
 mod kill_process;
 pub mod namespace;
 mod pod_logs;
 pub mod pods;
 mod port_forward;
 
+pub use delete_pod::*;
 pub use kill_process::*;
 pub use pod_logs::*;
 pub use port_forward::*;
