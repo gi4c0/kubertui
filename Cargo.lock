@@ -315,6 +315,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "kubertui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "futures",
+ "libc",
+ "ratatui",
+ "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.178"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -429,22 +445,6 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
-
-[[package]]
-name = "pro-kube"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossterm",
- "futures",
- "libc",
- "ratatui",
- "serde",
- "serde_json",
- "strum 0.27.2",
- "thiserror",
- "tokio",
-]
 
 [[package]]
 name = "proc-macro2"

@@ -35,8 +35,12 @@ pub struct PodLogs {
 }
 
 impl PodLogs {
-    pub async fn load(pod_name: String, event_sender: EventSender) -> AppResult<Self> {
-        let mut logs = kubectl::load_logs(pod_name.as_str()).await?;
+    pub async fn load(
+        namespace: String,
+        pod_name: String,
+        event_sender: EventSender,
+    ) -> AppResult<Self> {
+        let mut logs = kubectl::load_logs(namespace.as_str(), pod_name.as_str()).await?;
         logs.reverse();
 
         let prettified_logs: Vec<String> = logs

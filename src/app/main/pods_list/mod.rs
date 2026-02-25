@@ -308,7 +308,9 @@ impl PodsList {
                 pod_container.spinner.start();
 
                 let pod_name = pod_container.pod.name.clone();
+
                 Self::load_logs(
+                    self.namespace.clone(),
                     pod_name,
                     self.event_sender.clone(),
                     pod_container.spinner.clone(),
@@ -345,9 +347,14 @@ impl PodsList {
         Ok(())
     }
 
-    fn load_logs(pod_name: String, event_sender: EventSender, mut spinner: Spinner) {
+    fn load_logs(
+        namespace: String,
+        pod_name: String,
+        event_sender: EventSender,
+        mut spinner: Spinner,
+    ) {
         tokio::spawn(async move {
-            let logs = match PodLogs::load(pod_name, event_sender.clone()).await {
+            let logs = match PodLogs::load(namespace, pod_name, event_sender.clone()).await {
                 Ok(logs) => logs,
                 Err(err) => {
                     spinner.stop().await;

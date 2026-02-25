@@ -1,5 +1,5 @@
 [package]
-name = "pro-kube"
+name = "kubertui"
 version = "0.1.0"
 edition = "2024"
 

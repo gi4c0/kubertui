@@ -3,9 +3,9 @@ use tokio::process::Command;
 
 use crate::error::{AppError, AppResult};
 
-pub async fn load_logs(pod_name: &str) -> AppResult<Vec<String>> {
+pub async fn load_logs(namespace: &str, pod_name: &str) -> AppResult<Vec<String>> {
     let output = Command::new("kubectl")
-        .args(["logs", pod_name])
+        .args(["-n", namespace, "logs", pod_name])
         .output()
         .await
         .context("Failed to run logs command")
