@@ -13,6 +13,7 @@ use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, text::Span};
 
 #[derive(Debug, Clone)]
 pub struct NamespacesList {
+    cluster: String,
     namespace_list: FilterableList<String>,
     event_sender: EventSender,
     spinner: Spinner,
@@ -22,13 +23,15 @@ impl From<NamespacesList> for NamespacesListCache {
     fn from(value: NamespacesList) -> Self {
         Self {
             namespace_list: value.namespace_list.into(),
+            cluster: value.cluster,
         }
     }
 }
 
 impl NamespacesList {
-    pub fn new(event_sender: EventSender) -> Self {
+    pub fn new(event_sender: EventSender, cluster: String) -> Self {
         Self {
+            cluster,
             event_sender,
             namespace_list: FilterableList::new("Namespaces".to_string(), true),
             spinner: Spinner::new(),
@@ -49,14 +52,20 @@ impl NamespacesList {
     pub fn from_cache(list: NamespacesListCache, event_sender: EventSender) -> Self {
         Self {
             event_sender,
+            cluster: list.cluster,
             namespace_list: list.namespace_list.into(),
             spinner: Spinner::new(),
         }
     }
 
-    pub async fn load_namespaces(&mut self) -> AppResult<()> {
+    pub async fn update_cluster(&mut self, cluster: String) -> AppResult<()> {
+        self.cluster = cluster;
+        self.reload_namespaces().await
+    }
+
+    async fn reload_namespaces(&mut self) -> AppResult<()> {
         self.spinner.start();
-        let list = namespace::get_namespaces().await?;
+        let list = namespace::get_namespaces(self.cluster.as_str()).await?;
         self.spinner.stop().await;
 
         self.namespace_list.set_items(list);
@@ -70,7 +79,7 @@ impl NamespacesList {
                     self.event_sender.send(AppEvent::Quit);
                 }
                 ListEvent::SelectedItem(item) => {
-                    self.event_sender.send(AppEvent::SelectNamespace(item));
+                    self.event_sender.send(AppEvent::LoadPodsForNamespace(item));
                 }
                 ListEvent::StayInList => {}
             };
@@ -79,7 +88,7 @@ impl NamespacesList {
 
         match key.code {
             KeyCode::Char('r') => {
-                if let Err(err) = self.load_namespaces().await {
+                if let Err(err) = self.reload_namespaces().await {
                     self.event_sender
                         .send(AppEvent::ShowNotification(Notification::error(err)));
 

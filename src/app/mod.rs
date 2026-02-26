@@ -128,14 +128,16 @@ impl App {
                 self.exit = true;
                 cache::save_cache(self).await?;
             }
-            AppEvent::SelectNamespace(new_namespace) => {
+            AppEvent::LoadPodsForNamespace(new_namespace) => {
                 self.side_bar
-                    .namespaces
+                    .root_space
                     .add_to_recent(new_namespace.clone());
 
                 self.main.load_pods(new_namespace).await?;
                 self.active_window = ActiveWindow::Main;
             }
+
+            AppEvent::LoadNamespaces(cluster) => self.side_bar.load_namespaces(cluster).await?,
 
             AppEvent::ShowLogs(logs) => self.main.show_logs(logs),
 

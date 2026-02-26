@@ -67,7 +67,7 @@ impl RecentNamespacesList {
                     self.event_sender.send(AppEvent::Quit);
                 }
                 ListEvent::SelectedItem(item) => {
-                    self.event_sender.send(AppEvent::SelectNamespace(item));
+                    self.event_sender.send(AppEvent::LoadPodsForNamespace(item));
                 }
                 ListEvent::StayInList => {}
             };

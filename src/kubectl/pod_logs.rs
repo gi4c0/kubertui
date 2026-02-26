@@ -1,24 +1,9 @@
-use anyhow::Context;
-use tokio::process::Command;
-
-use crate::error::{AppError, AppResult};
+use crate::{error::AppResult, kubectl::run_kubectl_command};
 
 pub async fn load_logs(namespace: &str, pod_name: &str) -> AppResult<Vec<String>> {
-    let output = Command::new("kubectl")
-        .args(["-n", namespace, "logs", pod_name])
-        .output()
-        .await
-        .context("Failed to run logs command")
-        .map_err(AppError::FailedRunKubeCtlCommand)?;
+    let output = run_kubectl_command("kubectl", &["-n", namespace, "logs", pod_name]).await?;
 
-    if !output.status.success() {
-        return Err(AppError::FailedRunKubeCtlCommand(anyhow::anyhow!(
-            "Got error from logs command.\nstderr: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )));
-    }
-
-    let result: Vec<String> = String::from_utf8_lossy(&output.stdout)
+    let result: Vec<String> = String::from_utf8_lossy(&output)
         .lines()
         .map(|line| line.to_owned())
         .collect::<Vec<_>>();

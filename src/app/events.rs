@@ -20,7 +20,8 @@ pub enum AppEvent {
     FocusPrev,
     FocusSwitch,
     Quit,
-    SelectNamespace(String),
+    LoadNamespaces(String),
+    LoadPodsForNamespace(String),
     PortForward {
         pod_name: String,
         local_port: u16,

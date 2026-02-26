@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    app::{ActiveWindow, App, MainWindowKind, side_bar::namespaces::NamespacesWindowKind},
+    app::{ActiveWindow, App, MainWindowKind, side_bar::rootspaces::RootSpaceWindowKind},
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},
     kubectl::pods::{Pod, PodContainer},
@@ -68,15 +68,21 @@ pub struct AppCache {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NamespacesCache {
+pub struct RootSpaceCache {
     pub recent: RecentNamespacesListCache,
     pub full_list: NamespacesListCache,
-    pub kind: NamespacesWindowKind,
+    pub kind: RootSpaceWindowKind,
+    pub clusters: ClustersListCache,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ClustersListCache {
+    pub list: FilterableListCache<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SideBarCache {
-    pub namespaces: NamespacesCache,
+    pub namespaces: RootSpaceCache,
     pub port_forwards: PortForwardsListCache,
 }
 
@@ -119,12 +125,13 @@ pub struct PortForwardPopupCache {
     pub selected_container: Option<PodContainer>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NamespacesListCache {
+    pub cluster: String,
     pub namespace_list: FilterableListCache<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StateCache {
     pub selected: Option<usize>,
 }
@@ -145,7 +152,7 @@ impl From<StateCache> for ListState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FilterableListCache<T> {
     pub list: Vec<T>,
     pub state: StateCache,
