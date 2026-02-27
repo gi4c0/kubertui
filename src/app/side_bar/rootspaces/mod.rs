@@ -1,16 +1,12 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    text::{Line, Span},
-};
+use ratatui::{Frame, layout::Rect};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
 use crate::{
     app::{
         cache::RootSpaceCache,
-        common::FOCUS_COLOR,
+        common::title::build_title,
         events::EventSender,
         side_bar::rootspaces::{
             clusters_list::ClustersList, namespaces_list::NamespacesList,
@@ -98,20 +94,7 @@ impl RootSpace {
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        let title = Line::default().spans(Self::VIEWS.iter().enumerate().map(|(index, view)| {
-            let title_text = if index == Self::VIEWS.len() - 1 {
-                view.to_string()
-            } else {
-                format!("{view}   ")
-            };
-
-            let mut span = Span::from(title_text);
-            if self.kind == *view {
-                span = span.style(FOCUS_COLOR);
-            }
-
-            span
-        }));
+        let title = build_title(&Self::VIEWS, self.kind);
 
         match self.kind {
             RootSpaceWindowKind::AllNamespaces => {

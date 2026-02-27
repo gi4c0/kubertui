@@ -12,6 +12,8 @@ use crate::app::{
     common::build_block,
 };
 
+pub mod title;
+
 #[derive(Default, Debug, Clone)]
 pub struct FilterableList<T> {
     pub inner_list: Vec<T>,
