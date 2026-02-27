@@ -2,14 +2,14 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
+    style::{Style, Styled, Stylize},
     text::Span,
     widgets::{Clear, List, ListItem, ListState, Paragraph, block::Title},
 };
 
 use crate::app::{
     cache::{FilterableListCache, StateCache},
-    common::build_block,
+    common::{FOCUS_COLOR, build_block},
 };
 
 pub mod title;
@@ -164,30 +164,16 @@ where
             })
             .collect();
 
-        let block = build_block(title, !self.is_filter_mod && is_focused);
+        let mut block = build_block(title, is_focused);
+
+        if self.is_filter_mod || !self.filter.is_empty() {
+            block = block
+                .title_bottom(format!(" Filter: {} ", self.filter.as_str()).set_style(FOCUS_COLOR));
+        }
 
         let list = List::new(list_items)
             .block(block)
             .highlight_style(Style::default().underlined());
-
-        if self.is_filter_mod || !self.filter.is_empty() {
-            let layouts = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints(vec![Constraint::Length(3), Constraint::Min(1)])
-                .split(area);
-
-            let block = build_block("Filter", self.is_filter_mod);
-
-            let filter_widget = Paragraph::new(self.filter.as_str()).block(block);
-
-            for area in &*layouts {
-                frame.render_widget(Clear, *area);
-            }
-
-            frame.render_widget(filter_widget, layouts[0]);
-            frame.render_stateful_widget(list, layouts[1], &mut self.state);
-            return;
-        }
 
         frame.render_widget(Clear, area);
         frame.render_stateful_widget(list, area, &mut self.state);
