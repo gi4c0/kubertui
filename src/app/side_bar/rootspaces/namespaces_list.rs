@@ -9,7 +9,7 @@ use crate::{
     kubectl::namespace,
 };
 use crossterm::event::KeyCode;
-use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, text::Span};
+use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, text::Span, widgets::block::Title};
 
 #[derive(Debug, Clone)]
 pub struct NamespacesList {
@@ -38,7 +38,13 @@ impl NamespacesList {
         }
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+    pub fn draw<'a>(
+        &'a mut self,
+        area: Rect,
+        frame: &mut Frame,
+        is_focused: bool,
+        title: impl Into<Title<'a>>,
+    ) {
         if self.spinner.is_loading() {
             let area = common::centered_rect(area, 1, 1);
             let span = Span::from(self.spinner.get_spin_state());
@@ -46,7 +52,8 @@ impl NamespacesList {
             return;
         }
 
-        self.namespace_list.draw(area, frame, is_focused);
+        self.namespace_list
+            .draw_with_title(area, frame, is_focused, title);
     }
 
     pub fn from_cache(list: NamespacesListCache, event_sender: EventSender) -> Self {

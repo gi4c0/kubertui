@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{Frame, layout::Rect};
+use ratatui::{Frame, layout::Rect, widgets::block::Title};
 
 use crate::{
     app::{
@@ -47,8 +47,14 @@ impl ClustersList {
         Ok(())
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        self.list.draw(area, frame, is_focused);
+    pub fn draw<'a>(
+        &'a mut self,
+        area: Rect,
+        frame: &mut Frame,
+        is_focused: bool,
+        title: impl Into<Title<'a>>,
+    ) {
+        self.list.draw_with_title(area, frame, is_focused, title);
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
@@ -64,6 +70,8 @@ impl ClustersList {
             };
             return true;
         }
+
+        // TODO: show help
 
         if let KeyCode::Char('r') = key.code {
             if let Err(err) = self.load_clusters().await {

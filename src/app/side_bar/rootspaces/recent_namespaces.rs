@@ -1,5 +1,5 @@
 use crossterm::event::KeyCode;
-use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
+use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, widgets::block::Title};
 
 use crate::app::{
     cache::RecentNamespacesListCache,
@@ -56,8 +56,15 @@ impl RecentNamespacesList {
         };
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        self.recent_namespaces_list.draw(area, frame, is_focused);
+    pub fn draw<'a>(
+        &'a mut self,
+        area: Rect,
+        frame: &mut Frame,
+        is_focused: bool,
+        title: impl Into<Title<'a>>,
+    ) {
+        self.recent_namespaces_list
+            .draw_with_title(area, frame, is_focused, title);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {

@@ -44,7 +44,7 @@ impl SideBar {
     }
 
     pub async fn load_namespaces(&mut self, cluster: String) -> AppResult<()> {
-        self.root_space.load_namespaces(cluster).await;
+        self.root_space.load_namespaces(cluster).await
     }
 
     pub fn from_cache(value: SideBarCache, event_sender: EventSender) -> Self {

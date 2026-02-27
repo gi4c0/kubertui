@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Style, Stylize},
     text::Span,
-    widgets::{Clear, List, ListItem, ListState, Paragraph},
+    widgets::{Clear, List, ListItem, ListState, Paragraph, block::Title},
 };
 
 use crate::app::{
@@ -16,7 +16,7 @@ use crate::app::{
 pub struct FilterableList<T> {
     pub inner_list: Vec<T>,
     pub state: ListState,
-    list_name: String,
+    title: String,
     is_filterable: bool,
     filtered_list: Vec<usize>,
     filter: String,
@@ -64,7 +64,7 @@ where
                 selected: value.state.selected(),
             },
             is_filterable: value.is_filterable,
-            list_name: value.list_name,
+            title: value.title,
         }
     }
 }
@@ -84,7 +84,7 @@ where
             inner_list: value.list.into_iter().map(|item| item.into()).collect(),
             state,
             is_filterable: value.is_filterable,
-            list_name: value.list_name,
+            title: value.title,
         }
     }
 }
@@ -108,7 +108,7 @@ where
             is_filter_mod: false,
             inner_list: vec![],
             is_filterable,
-            list_name,
+            title: list_name,
             state,
         }
     }
@@ -132,12 +132,21 @@ where
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+        self.draw_with_title(area, frame, is_focused, self.title.clone());
+    }
+
+    pub fn draw_with_title<'a>(
+        &mut self,
+        area: Rect,
+        frame: &mut Frame,
+        is_focused: bool,
+        title: impl Into<Title<'a>>,
+    ) {
         let list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
             .map(|index| {
                 let item = &self.inner_list[*index];
-                // TODO: use Line
                 let mut span = Span::from(item.as_ref());
 
                 if let Some(spinner_text) = item.spinner() {
@@ -153,7 +162,7 @@ where
             })
             .collect();
 
-        let block = build_block(self.list_name.as_str(), !self.is_filter_mod && is_focused);
+        let block = build_block(title, !self.is_filter_mod && is_focused);
 
         let list = List::new(list_items)
             .block(block)

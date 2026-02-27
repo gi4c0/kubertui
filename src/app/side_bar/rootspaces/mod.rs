@@ -1,10 +1,16 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{Frame, layout::Rect};
+use ratatui::{
+    Frame,
+    layout::Rect,
+    text::{Line, Span},
+};
 use serde::{Deserialize, Serialize};
+use strum::Display;
 
 use crate::{
     app::{
         cache::RootSpaceCache,
+        common::FOCUS_COLOR,
         events::EventSender,
         side_bar::rootspaces::{
             clusters_list::ClustersList, namespaces_list::NamespacesList,
@@ -18,10 +24,15 @@ mod clusters_list;
 pub mod namespaces_list;
 pub mod recent_namespaces;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Display)]
 pub enum RootSpaceWindowKind {
+    #[strum(to_string = "Recent Namespaces")]
     RecentNamespaces,
+
+    #[strum(to_string = "All Namespaces")]
     AllNamespaces,
+
+    #[strum(to_string = "Clusters")]
     Clusters,
 }
 
@@ -87,12 +98,31 @@ impl RootSpace {
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+        let title = Line::default().spans(Self::VIEWS.iter().enumerate().map(|(index, view)| {
+            let title_text = if index == Self::VIEWS.len() - 1 {
+                view.to_string()
+            } else {
+                format!("{view}   ")
+            };
+
+            let mut span = Span::from(title_text);
+            if self.kind == *view {
+                span = span.style(FOCUS_COLOR);
+            }
+
+            span
+        }));
+
         match self.kind {
             RootSpaceWindowKind::AllNamespaces => {
-                self.full_list.draw(area, frame, is_focused);
+                self.full_list.draw(area, frame, is_focused, title);
             }
-            RootSpaceWindowKind::RecentNamespaces => self.recent.draw(area, frame, is_focused),
-            RootSpaceWindowKind::Clusters => self.clusters_list.draw(area, frame, is_focused),
+            RootSpaceWindowKind::RecentNamespaces => {
+                self.recent.draw(area, frame, is_focused, title)
+            }
+            RootSpaceWindowKind::Clusters => {
+                self.clusters_list.draw(area, frame, is_focused, title)
+            }
         };
     }
 

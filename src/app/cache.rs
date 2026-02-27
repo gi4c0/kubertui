@@ -156,7 +156,7 @@ impl From<StateCache> for ListState {
 pub struct FilterableListCache<T> {
     pub list: Vec<T>,
     pub state: StateCache,
-    pub list_name: String,
+    pub title: String,
     pub is_filterable: bool,
     pub filtered_list: Vec<usize>,
     pub filter: String,
