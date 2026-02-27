@@ -4,7 +4,7 @@ use ratatui::{Frame, layout::Rect, widgets::block::Title};
 use crate::{
     app::{
         cache::ClustersListCache,
-        common::{FilterableList, ListEvent, handle_general_keys},
+        common::{FilterableList, HelpMenuEnum, ListEvent, handle_general_keys},
         events::{AppEvent, EventSender},
         notification::Notification,
     },
@@ -71,15 +71,20 @@ impl ClustersList {
             return true;
         }
 
-        // TODO: show help
+        match key.code {
+            KeyCode::Char('r') => {
+                if let Err(err) = self.load_clusters().await {
+                    self.event_sender
+                        .send(AppEvent::ShowNotification(Notification::error(err)));
+                }
 
-        if let KeyCode::Char('r') = key.code {
-            if let Err(err) = self.load_clusters().await {
-                self.event_sender
-                    .send(AppEvent::ShowNotification(Notification::error(err)));
+                return true;
             }
-
-            return true;
+            KeyCode::Char('?') => {
+                self.event_sender
+                    .send(AppEvent::ShowHelp(HelpMenuEnum::Clusters));
+            }
+            _ => {}
         }
 
         handle_general_keys(key, &self.event_sender)

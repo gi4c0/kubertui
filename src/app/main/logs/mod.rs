@@ -263,7 +263,7 @@ impl PodLogs {
 
             KeyCode::Char('?') => self
                 .event_sender
-                .send(AppEvent::ShowHelp(HelpMenuEnum::Namespaces)),
+                .send(AppEvent::ShowHelp(HelpMenuEnum::Logs)),
 
             KeyCode::Enter => {
                 if let Some(selected) = self.state.selected() {

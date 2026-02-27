@@ -1,3 +1,4 @@
+mod clusters_help;
 mod namespaces_help;
 mod pod_list_help;
 mod pod_logs_help;
@@ -17,6 +18,7 @@ use crate::app::common::{build_block, centered_rect, get_highlight_style};
 
 #[derive(Debug, Clone, Copy)]
 pub enum HelpMenuEnum {
+    Clusters,
     Namespaces,
     RecentNamespaces,
     RecentPortForwards,
@@ -31,6 +33,7 @@ struct HelpByDomain {
     recent_port_forwards: Vec<HelpItem>,
     pods: Vec<HelpItem>,
     logs: Vec<HelpItem>,
+    clusters: Vec<HelpItem>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +70,7 @@ impl Default for HelpMenu {
                 recent_port_forwards: recent_port_forwards_help::HELP_ITEMS.to_vec(),
                 pods: pod_list_help::HELP_ITEMS.to_vec(),
                 logs: pod_logs_help::HELP_ITEMS.to_vec(),
+                clusters: clusters_help::HELP_ITEMS.to_vec(),
             },
         }
     }
@@ -129,6 +133,7 @@ impl HelpMenu {
             HelpMenuEnum::RecentPortForwards => &self.help_by_domain.recent_port_forwards,
             HelpMenuEnum::Pods => &self.help_by_domain.pods,
             HelpMenuEnum::Logs => &self.help_by_domain.logs,
+            HelpMenuEnum::Clusters => &self.help_by_domain.clusters,
         }
     }
 
