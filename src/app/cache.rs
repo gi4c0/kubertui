@@ -54,6 +54,12 @@ pub async fn read_cache() -> Option<AppCache> {
     cache
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterCache {
+    pub name: String,
+    pub is_selected: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MainWindowCache {
     pub pods_list: Option<PodsListCache>,
@@ -77,7 +83,7 @@ pub struct RootSpaceCache {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClustersListCache {
-    pub list: FilterableListCache<String>,
+    pub list: FilterableListCache<ClusterCache>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
