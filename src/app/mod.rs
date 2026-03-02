@@ -5,6 +5,8 @@ mod main;
 mod notification;
 mod side_bar;
 
+use std::env;
+
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{Event, KeyEvent, KeyEventKind},
@@ -42,6 +44,8 @@ pub struct App {
 }
 
 impl App {
+    const CACHE_KEY: &'static str = "KUBERTUI_USE_CACHE";
+
     const FOCUS_ORDER: [ActiveWindow; 2] = [
         ActiveWindow::SideBar(SideBarWindow::Namespaces),
         ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
@@ -72,12 +76,15 @@ impl App {
     }
 
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
-        let cache = cache::read_cache().await;
+        let cache_key_value = env::var(Self::CACHE_KEY).unwrap_or(String::new());
 
-        match cache {
-            Some(cache) => self.merge_cache(cache),
-            None => self.initial_load().await?,
-        };
+        if (cache_key_value.as_str() == "1" || cache_key_value.as_str() == "true")
+            && let Some(cache) = cache::read_cache().await
+        {
+            self.merge_cache(cache);
+        } else {
+            self.initial_load().await?;
+        }
 
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
