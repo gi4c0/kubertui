@@ -57,6 +57,7 @@ impl MainWindow {
         pod_list.load().await?;
 
         self.pods_list = Some(pod_list);
+        self.kind = MainWindowKind::Pods;
         Ok(())
     }
 

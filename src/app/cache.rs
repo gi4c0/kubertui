@@ -133,7 +133,6 @@ pub struct PortForwardPopupCache {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NamespacesListCache {
-    pub cluster: String,
     pub namespace_list: FilterableListCache<String>,
 }
 

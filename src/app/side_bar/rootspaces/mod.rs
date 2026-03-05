@@ -63,8 +63,8 @@ impl RootSpace {
         self.recent.add_to_list(new_name_space);
     }
 
-    pub async fn load_namespaces(&mut self, cluster: String) -> AppResult<()> {
-        self.full_list.update_cluster(cluster).await?;
+    pub async fn load_namespaces(&mut self, namespaces: Vec<String>) -> AppResult<()> {
+        self.full_list.set_namespaces(namespaces);
         self.kind = RootSpaceWindowKind::AllNamespaces;
         Ok(())
     }
@@ -87,7 +87,7 @@ impl RootSpace {
         Self {
             recent: RecentNamespacesList::new(event_sender.clone()),
             event_sender: event_sender.clone(),
-            full_list: NamespacesList::new(event_sender.clone(), "".to_string()),
+            full_list: NamespacesList::new(event_sender.clone()),
             kind: RootSpaceWindowKind::Clusters,
             clusters_list: ClustersList::new(event_sender.clone()),
         }

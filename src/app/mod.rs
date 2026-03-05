@@ -144,7 +144,9 @@ impl App {
                 self.active_window = ActiveWindow::Main;
             }
 
-            AppEvent::LoadNamespaces(cluster) => self.side_bar.load_namespaces(cluster).await?,
+            AppEvent::LoadNamespaces(namespaces) => {
+                self.side_bar.load_namespaces(namespaces).await?
+            }
 
             AppEvent::ShowLogs(logs) => self.main.show_logs(logs),
 
