@@ -35,7 +35,7 @@ pub struct PortForward {
     local_port: u16,
     app_port: u16,
     pid: Arc<Mutex<Option<u32>>>,
-    spinner: Spinner,
+    spinner: Option<Spinner>,
     item_str: String,
 }
 
@@ -60,7 +60,9 @@ impl ListItemTrait for PortForward {
     }
 
     fn spinner(&self) -> Option<String> {
-        Some(self.spinner.get_spin_state().to_owned())
+        self.spinner
+            .as_ref()
+            .and_then(|spinner| spinner.get_spin_state().map(|spinner| spinner.to_owned()))
     }
 }
 
@@ -94,7 +96,7 @@ impl From<PortForwardCache> for PortForward {
             pod_name: value.pod_name,
             app_port: value.app_port,
             pid: Arc::new(Mutex::new(value.pid)),
-            spinner: Spinner::new(),
+            spinner: None,
         }
     }
 }
@@ -201,8 +203,7 @@ impl PortForwardsList {
             return;
         }
 
-        let mut spinner = Spinner::new();
-        spinner.start();
+        let spinner = Spinner::new();
 
         let pod = PortForward {
             pid: Arc::new(Mutex::new(None)),
@@ -211,13 +212,13 @@ impl PortForwardsList {
             local_port,
             item_str: format!("{} -> {local_port}:{app_port}", pod_name),
             pod_name,
-            spinner: spinner.clone(),
+            spinner: Some(spinner.clone()),
         };
 
         let event_sender = self.event_sender.clone();
         let cloned_pod = pod.clone();
 
-        tokio::spawn(async move {
+        tokio::spawn(async {
             Self::port_forward(event_sender, cloned_pod).await;
         });
 
@@ -266,7 +267,7 @@ impl PortForwardsList {
                 }
             }
 
-            self.list.inner_list[selected].spinner.start();
+            self.list.inner_list[selected].spinner = Some(Spinner::new());
 
             let pod = self.list.inner_list[selected].clone();
             let event_sender = self.event_sender.clone();
@@ -314,12 +315,16 @@ impl PortForwardsList {
                     err.to_string(),
                 )));
 
-                pod.spinner.stop().await;
+                if let Some(spinner) = pod.spinner.as_mut() {
+                    spinner.stop();
+                }
                 return;
             }
         };
 
-        pod.spinner.stop().await;
+        if let Some(spinner) = pod.spinner.as_mut() {
+            spinner.stop();
+        }
 
         {
             let mut pod_pid = pod.pid.lock().await;

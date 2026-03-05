@@ -1,10 +1,6 @@
 use crate::app::common::HelpItem;
 
-pub const HELP_ITEMS: [HelpItem; 14] = [
-    HelpItem {
-        key: "r",
-        desc: "Reload namespaces list",
-    },
+pub const HELP_ITEMS: [HelpItem; 13] = [
     HelpItem {
         key: "j",
         desc: "Select below item",

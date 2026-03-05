@@ -34,14 +34,14 @@ use crate::{
 #[derive(Debug, Clone)]
 struct PodWithSpinner {
     pod: Pod,
-    spinner: Spinner,
+    spinner: Option<Spinner>,
 }
 
 impl From<Pod> for PodWithSpinner {
     fn from(value: Pod) -> Self {
         Self {
             pod: value,
-            spinner: Spinner::new(),
+            spinner: None,
         }
     }
 }
@@ -149,7 +149,12 @@ impl PodsList {
             .map(|index| {
                 let item = &self.original_list[*index];
 
-                let maybe_spinner = item.spinner.get_spin_state();
+                let maybe_spinner = item
+                    .spinner
+                    .as_ref()
+                    .and_then(|spinner| spinner.get_spin_state())
+                    .unwrap_or(" ");
+
                 let pod_name = format!("{maybe_spinner} {}", item.pod.name.as_str());
 
                 Row::new([
@@ -305,7 +310,8 @@ impl PodsList {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
                 let pod_container = &mut self.original_list[index];
 
-                pod_container.spinner.start();
+                let spinner = Spinner::new();
+                pod_container.spinner = Some(spinner.clone());
 
                 let pod_name = pod_container.pod.name.clone();
 
@@ -313,7 +319,7 @@ impl PodsList {
                     self.namespace.clone(),
                     pod_name,
                     self.event_sender.clone(),
-                    pod_container.spinner.clone(),
+                    spinner,
                 );
             }
             KeyCode::Esc => self.event_sender.send(AppEvent::ClosePodsList),
@@ -357,7 +363,7 @@ impl PodsList {
             let logs = match PodLogs::load(namespace, pod_name, event_sender.clone()).await {
                 Ok(logs) => logs,
                 Err(err) => {
-                    spinner.stop().await;
+                    spinner.stop();
 
                     event_sender.send(AppEvent::ShowNotification(Notification::error(
                         err.to_string(),
@@ -367,7 +373,7 @@ impl PodsList {
             };
 
             event_sender.send(AppEvent::ShowLogs(logs));
-            spinner.stop().await;
+            spinner.stop();
         });
     }
 

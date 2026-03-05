@@ -7,7 +7,7 @@ use crate::error::{AppError, AppResult};
 mod delete_pod;
 mod get_clusters;
 mod kill_process;
-pub mod namespace;
+mod namespace;
 mod pod_logs;
 pub mod pods;
 mod port_forward;
@@ -15,6 +15,7 @@ mod port_forward;
 pub use delete_pod::*;
 pub use get_clusters::*;
 pub use kill_process::*;
+pub use namespace::*;
 pub use pod_logs::*;
 pub use port_forward::*;
 

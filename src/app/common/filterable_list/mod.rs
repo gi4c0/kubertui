@@ -1,10 +1,10 @@
 use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Style, Styled, Stylize},
     text::Span,
-    widgets::{Clear, List, ListItem, ListState, Paragraph, block::Title},
+    widgets::{Clear, List, ListItem, ListState, block::Title},
 };
 
 use crate::app::{
