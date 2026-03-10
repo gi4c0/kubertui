@@ -1,5 +1,9 @@
-use crossterm::event::KeyCode;
-use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, widgets::block::Title};
+use ratatui::{
+    Frame,
+    crossterm::event::{KeyCode, KeyEvent},
+    layout::Rect,
+    text::Line,
+};
 
 use crate::app::{
     cache::RecentNamespacesListCache,
@@ -61,7 +65,7 @@ impl RecentNamespacesList {
         area: Rect,
         frame: &mut Frame,
         is_focused: bool,
-        title: impl Into<Title<'a>>,
+        title: impl Into<Line<'a>>,
     ) {
         self.recent_namespaces_list
             .draw_with_title(area, frame, is_focused, title);

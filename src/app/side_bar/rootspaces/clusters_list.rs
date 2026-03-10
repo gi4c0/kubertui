@@ -1,5 +1,10 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{Frame, layout::Rect, style::Style, widgets::block::Title};
+use ratatui::{
+    Frame,
+    crossterm::event::{KeyCode, KeyEvent},
+    layout::Rect,
+    style::Style,
+    text::Line,
+};
 
 use crate::{
     app::{
@@ -65,7 +70,7 @@ impl ClustersList {
         area: Rect,
         frame: &mut Frame,
         is_focused: bool,
-        title: impl Into<Title<'a>>,
+        title: impl Into<Line<'a>>,
     ) {
         self.list.draw_with_title(area, frame, is_focused, title);
     }

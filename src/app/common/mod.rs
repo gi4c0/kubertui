@@ -11,7 +11,8 @@ pub use spinner::*;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, block::Title},
+    text::Line,
+    widgets::{Block, BorderType, Borders},
 };
 
 pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
@@ -39,7 +40,7 @@ pub const BORDER_FOCUS_COLOR: Color = Color::LightYellow;
 
 pub fn build_block<'a, T>(title: T, is_focused: bool) -> Block<'a>
 where
-    T: Into<Title<'a>>,
+    T: Into<Line<'a>>,
 {
     let mut block = Block::default()
         .title(title)

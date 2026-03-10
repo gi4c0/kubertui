@@ -3,8 +3,12 @@ use crate::app::{
     common::{FilterableList, HelpMenuEnum, ListEvent, handle_general_keys},
     events::{AppEvent, EventSender},
 };
-use crossterm::event::KeyCode;
-use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect, widgets::block::Title};
+use ratatui::{
+    Frame,
+    crossterm::event::{KeyCode, KeyEvent},
+    layout::Rect,
+    text::Line,
+};
 
 #[derive(Debug, Clone)]
 pub struct NamespacesList {
@@ -33,7 +37,7 @@ impl NamespacesList {
         area: Rect,
         frame: &mut Frame,
         is_focused: bool,
-        title: impl Into<Title<'a>>,
+        title: impl Into<Line<'a>>,
     ) {
         self.namespace_list
             .draw_with_title(area, frame, is_focused, title);

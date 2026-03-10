@@ -1,5 +1,8 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{Frame, layout::Rect};
+use ratatui::{
+    Frame,
+    crossterm::event::{KeyCode, KeyEvent},
+    layout::Rect,
+};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 

@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::events::{AppEvent, EventSender};
 

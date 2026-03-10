@@ -1,9 +1,8 @@
 use std::{process::Command, sync::Arc, time::Duration};
 
-use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
-    crossterm::event::KeyEvent,
+    crossterm::event::{KeyCode, KeyEvent},
     layout::Rect,
     style::{Color, Style},
     widgets::ListState,

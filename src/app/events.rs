@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use ::crossterm::event::EventStream;
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
 use ratatui::crossterm::{self, event::Event as CrosstermEvent};
@@ -87,7 +88,7 @@ impl EventTask {
     }
 
     async fn run(self) {
-        let mut reader = crossterm::event::EventStream::new();
+        let mut reader = EventStream::new();
         let tick_rate = Duration::from_secs_f64(1.0 / TICK_FPS);
         let mut tick = tokio::time::interval(tick_rate);
 

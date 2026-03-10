@@ -1,8 +1,8 @@
 mod log_item;
 
-use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
+    crossterm::event::{KeyCode, KeyEvent},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},

@@ -1,11 +1,9 @@
 mod delete_pod_alert;
 mod port_forward_popup;
 
-use crossterm::event::KeyCode;
-
 use ratatui::{
     Frame,
-    crossterm::event::KeyEvent,
+    crossterm::event::{KeyCode, KeyEvent},
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Cell, Paragraph, Row, Table, TableState},
 };

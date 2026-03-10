@@ -2,9 +2,9 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::Rect,
-    style::{Style, Styled, Stylize},
-    text::Span,
-    widgets::{Clear, List, ListItem, ListState, block::Title},
+    style::{Style, Styled},
+    text::{Line, Span},
+    widgets::{Clear, List, ListItem, ListState},
 };
 
 use crate::app::{
@@ -142,7 +142,7 @@ where
         area: Rect,
         frame: &mut Frame,
         is_focused: bool,
-        title: impl Into<Title<'a>>,
+        title: impl Into<Line<'a>>,
     ) {
         let list_items: Vec<ListItem> = self
             .filtered_list

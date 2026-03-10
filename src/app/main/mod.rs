@@ -1,5 +1,4 @@
-use crossterm::event::KeyEvent;
-use ratatui::{Frame, layout::Rect};
+use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 use serde::{Deserialize, Serialize};
 
 use crate::{

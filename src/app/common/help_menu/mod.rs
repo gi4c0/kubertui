@@ -6,7 +6,7 @@ mod recent_port_forwards_help;
 
 use std::vec;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::text::Line;
 use ratatui::{
     Frame,
