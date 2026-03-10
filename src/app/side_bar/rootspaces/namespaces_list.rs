@@ -54,6 +54,22 @@ impl NamespacesList {
         self.namespace_list.set_items(namespaces);
     }
 
+    pub fn add_namespace(&mut self, namespace: String) {
+        let existing_index = self
+            .namespace_list
+            .inner_list
+            .iter()
+            .position(|i| i == namespace.as_str());
+
+        match existing_index {
+            Some(existing_index) => {
+                self.namespace_list.inner_list.remove(existing_index);
+                self.namespace_list.inner_list.insert(0, namespace);
+            }
+            None => self.namespace_list.append_to_list(namespace),
+        };
+    }
+
     pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(list_event) = self.namespace_list.handle_key(key) {
             match list_event {

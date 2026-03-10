@@ -75,7 +75,7 @@ pub struct AppCache {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RootSpaceCache {
-    pub recent: RecentNamespacesListCache,
+    pub recent: NamespacesListCache,
     pub full_list: NamespacesListCache,
     pub kind: RootSpaceWindowKind,
     pub clusters: ClustersListCache,
@@ -105,11 +105,6 @@ pub struct PortForwardCache {
     pub app_port: u16,
     pub pid: Option<u32>,
     pub item_str: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RecentNamespacesListCache {
-    pub recent_namespaces_list: FilterableListCache<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

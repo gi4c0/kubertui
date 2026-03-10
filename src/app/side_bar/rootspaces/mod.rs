@@ -11,17 +11,13 @@ use crate::{
         cache::RootSpaceCache,
         common::title::build_title,
         events::EventSender,
-        side_bar::rootspaces::{
-            clusters_list::ClustersList, namespaces_list::NamespacesList,
-            recent_namespaces::RecentNamespacesList,
-        },
+        side_bar::rootspaces::{clusters_list::ClustersList, namespaces_list::NamespacesList},
     },
     error::AppResult,
 };
 
 mod clusters_list;
 pub mod namespaces_list;
-pub mod recent_namespaces;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Display)]
 pub enum RootSpaceWindowKind {
@@ -37,7 +33,7 @@ pub enum RootSpaceWindowKind {
 
 #[derive(Debug, Clone)]
 pub struct RootSpace {
-    recent: RecentNamespacesList,
+    recent: NamespacesList,
     full_list: NamespacesList,
     clusters_list: ClustersList,
     event_sender: EventSender,
@@ -63,7 +59,7 @@ impl RootSpace {
     ];
 
     pub fn add_to_recent(&mut self, new_name_space: String) {
-        self.recent.add_to_list(new_name_space);
+        self.recent.add_namespace(new_name_space);
     }
 
     pub async fn load_namespaces(&mut self, namespaces: Vec<String>) -> AppResult<()> {
@@ -80,7 +76,7 @@ impl RootSpace {
         Self {
             full_list: NamespacesList::from_cache(value.full_list, event_sender.clone()),
             kind: value.kind,
-            recent: RecentNamespacesList::from_cache(value.recent, event_sender.clone()),
+            recent: NamespacesList::from_cache(value.recent, event_sender.clone()),
             event_sender: event_sender.clone(),
             clusters_list: ClustersList::from_cache(value.clusters, event_sender.clone()),
         }
@@ -88,7 +84,7 @@ impl RootSpace {
 
     pub fn new(event_sender: EventSender) -> Self {
         Self {
-            recent: RecentNamespacesList::new(event_sender.clone()),
+            recent: NamespacesList::new(event_sender.clone()),
             event_sender: event_sender.clone(),
             full_list: NamespacesList::new(event_sender.clone()),
             kind: RootSpaceWindowKind::Clusters,
@@ -120,7 +116,7 @@ impl RootSpace {
                 }
             }
             RootSpaceWindowKind::RecentNamespaces => {
-                if self.recent.handle_key_event(key) {
+                if self.recent.handle_key_event(key).await {
                     return;
                 }
             }
