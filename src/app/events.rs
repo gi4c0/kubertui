@@ -3,12 +3,13 @@ use std::time::Duration;
 use ::crossterm::event::EventStream;
 use anyhow::Context;
 use futures::{FutureExt, StreamExt};
-use ratatui::crossterm::{self, event::Event as CrosstermEvent};
+use ratatui::crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
 use crate::{
     app::{ActiveWindow, common::HelpMenuEnum, main::logs::PodLogs, notification::Notification},
     error::{AppError, AppResult},
+    kubectl::pods::Pod,
 };
 
 const TICK_FPS: f64 = 30.0;
@@ -22,7 +23,10 @@ pub enum AppEvent {
     FocusSwitch,
     Quit,
     LoadNamespaces(Vec<String>),
-    LoadPodsForNamespace(String),
+    ShowPods {
+        pods: Vec<Pod>,
+        namespace: String,
+    },
     PortForward {
         pod_name: String,
         local_port: u16,

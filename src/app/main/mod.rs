@@ -8,6 +8,7 @@ use crate::{
         main::{logs::PodLogs, pods_list::PodsList},
     },
     error::AppResult,
+    kubectl::pods::Pod,
 };
 
 pub mod logs;
@@ -51,9 +52,8 @@ impl MainWindow {
         }
     }
 
-    pub async fn load_pods(&mut self, namespace: String) -> AppResult<()> {
-        let mut pod_list = PodsList::new(self.event_sender.clone(), namespace);
-        pod_list.load().await?;
+    pub async fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) -> AppResult<()> {
+        let pod_list = PodsList::new(self.event_sender.clone(), namespace, pods);
 
         self.pods_list = Some(pod_list);
         self.kind = MainWindowKind::Pods;

@@ -20,7 +20,6 @@ use crate::app::common::{build_block, centered_rect, get_highlight_style};
 pub enum HelpMenuEnum {
     Clusters,
     Namespaces,
-    RecentNamespaces,
     RecentPortForwards,
     Pods,
     Logs,
@@ -29,7 +28,6 @@ pub enum HelpMenuEnum {
 #[derive(Debug, Clone)]
 struct HelpByDomain {
     namespaces: Vec<HelpItem>,
-    recent_namespaces: Vec<HelpItem>,
     recent_port_forwards: Vec<HelpItem>,
     pods: Vec<HelpItem>,
     logs: Vec<HelpItem>,
@@ -66,7 +64,6 @@ impl Default for HelpMenu {
             is_filter_mod: false,
             help_by_domain: HelpByDomain {
                 namespaces: namespaces_help::HELP_ITEMS.to_vec(),
-                recent_namespaces: namespaces_help::HELP_ITEMS.to_vec(),
                 recent_port_forwards: recent_port_forwards_help::HELP_ITEMS.to_vec(),
                 pods: pod_list_help::HELP_ITEMS.to_vec(),
                 logs: pod_logs_help::HELP_ITEMS.to_vec(),
@@ -128,7 +125,6 @@ impl HelpMenu {
 
     fn get_items(&self, kind: HelpMenuEnum) -> &[HelpItem] {
         match kind {
-            HelpMenuEnum::RecentNamespaces => &self.help_by_domain.recent_namespaces,
             HelpMenuEnum::Namespaces => &self.help_by_domain.namespaces,
             HelpMenuEnum::RecentPortForwards => &self.help_by_domain.recent_port_forwards,
             HelpMenuEnum::Pods => &self.help_by_domain.pods,

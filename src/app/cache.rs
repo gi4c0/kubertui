@@ -117,6 +117,7 @@ pub struct PodsListCache {
     pub longest_name: u16,
     pub port_forward_popup: Option<PortForwardPopupCache>,
     pub namespace: String,
+    pub title: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -127,8 +128,13 @@ pub struct PortForwardPopupCache {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NamespaceItemCache {
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NamespacesListCache {
-    pub namespace_list: FilterableListCache<String>,
+    pub namespace_list: FilterableListCache<NamespaceItemCache>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

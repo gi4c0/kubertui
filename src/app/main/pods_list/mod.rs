@@ -61,6 +61,7 @@ pub struct PodsList {
     longest_name: u16,
     port_forward_popup: Option<PortForwardPopup>,
     delete_pod_alert: Option<DeletePodAlert>,
+    title: String,
     namespace: String,
 }
 
@@ -73,6 +74,7 @@ impl From<PodsList> for PodsListCache {
             original_list: value.original_list.into_iter().map(Into::into).collect(),
             longest_name: value.longest_name,
             namespace: value.namespace,
+            title: value.title,
             state: StateCache {
                 selected: value.state.selected(),
             },
@@ -94,15 +96,36 @@ impl PodsList {
             delete_pod_alert: None,
             original_list: value.original_list.into_iter().map(Into::into).collect(),
             longest_name: value.longest_name,
+            title: value.title,
             namespace: value.namespace,
             state,
             port_forward_popup: value.port_forward_popup.map(|i| i.into()),
         }
     }
 
-    pub async fn load(&mut self) -> AppResult<()> {
-        let pods = get_pods_list(self.namespace.as_str()).await?;
+    pub fn new(event_sender: EventSender, namespace: String, pods: Vec<Pod>) -> Self {
+        let mut state = TableState::default();
+        state.select(Some(0));
 
+        let mut list = Self {
+            filtered_list: Vec::new(),
+            namespace: namespace.clone(),
+            title: format!("[{namespace}] Select pod"),
+            longest_name: 0,
+            original_list: Vec::new(),
+            delete_pod_alert: None,
+            event_sender,
+            state,
+            filter: String::new(),
+            is_filter_mod: false,
+            port_forward_popup: None,
+        };
+
+        list.update_pods(pods);
+        list
+    }
+
+    fn update_pods(&mut self, pods: Vec<Pod>) {
         let longest_name = pods
             .iter()
             .max_by_key(|p| p.name.len())
@@ -113,26 +136,6 @@ impl PodsList {
         self.filtered_list = pods.iter().enumerate().map(|(index, _)| index).collect();
         self.original_list = pods.into_iter().map(Into::into).collect();
         self.state.select(Some(0));
-
-        Ok(())
-    }
-
-    pub fn new(event_sender: EventSender, namespace: String) -> Self {
-        let mut state = TableState::default();
-        state.select(Some(0));
-
-        Self {
-            filtered_list: Vec::new(),
-            namespace,
-            longest_name: 0,
-            original_list: Vec::new(),
-            delete_pod_alert: None,
-            event_sender,
-            state,
-            filter: String::new(),
-            is_filter_mod: false,
-            port_forward_popup: None,
-        }
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
@@ -345,7 +348,9 @@ impl PodsList {
         }
 
         self.delete_pod_alert = None;
-        self.load().await?;
+        let pods = get_pods_list(self.namespace.as_str()).await?;
+
+        self.update_pods(pods);
         self.update_filtered_list();
 
         Ok(())

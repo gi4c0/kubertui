@@ -135,12 +135,10 @@ impl App {
                 self.exit = true;
                 cache::save_cache(self).await?;
             }
-            AppEvent::LoadPodsForNamespace(new_namespace) => {
-                self.side_bar
-                    .root_space
-                    .add_to_recent(new_namespace.clone());
+            AppEvent::ShowPods { pods, namespace } => {
+                self.side_bar.root_space.add_to_recent(namespace.clone());
 
-                self.main.load_pods(new_namespace).await?;
+                self.main.show_pods(namespace, pods).await?;
                 self.active_window = ActiveWindow::Main;
             }
 

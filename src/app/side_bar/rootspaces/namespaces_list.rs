@@ -1,7 +1,13 @@
-use crate::app::{
-    cache::NamespacesListCache,
-    common::{FilterableList, HelpMenuEnum, ListEvent, handle_general_keys},
-    events::{AppEvent, EventSender},
+use crate::{
+    app::{
+        cache::{NamespaceItemCache, NamespacesListCache},
+        common::{
+            FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner, handle_general_keys,
+        },
+        events::{AppEvent, EventSender},
+        notification::Notification,
+    },
+    kubectl::pods::get_pods_list,
 };
 use ratatui::{
     Frame,
@@ -12,16 +18,14 @@ use ratatui::{
 
 #[derive(Debug, Clone)]
 pub struct NamespacesList {
-    namespace_list: FilterableList<String>,
+    namespace_list: FilterableList<NamespaceItem>,
     event_sender: EventSender,
 }
 
-impl From<NamespacesList> for NamespacesListCache {
-    fn from(value: NamespacesList) -> Self {
-        Self {
-            namespace_list: value.namespace_list.into(),
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct NamespaceItem {
+    value: String,
+    spinner: Option<Spinner>,
 }
 
 impl NamespacesList {
@@ -51,7 +55,15 @@ impl NamespacesList {
     }
 
     pub fn set_namespaces(&mut self, namespaces: Vec<String>) {
-        self.namespace_list.set_items(namespaces);
+        self.namespace_list.set_items(
+            namespaces
+                .into_iter()
+                .map(|namespace| NamespaceItem {
+                    spinner: None,
+                    value: namespace,
+                })
+                .collect(),
+        );
     }
 
     pub fn add_namespace(&mut self, namespace: String) {
@@ -59,15 +71,16 @@ impl NamespacesList {
             .namespace_list
             .inner_list
             .iter()
-            .position(|i| i == namespace.as_str());
+            .position(|i| i.value.as_str() == namespace.as_str());
 
-        match existing_index {
-            Some(existing_index) => {
-                self.namespace_list.inner_list.remove(existing_index);
-                self.namespace_list.inner_list.insert(0, namespace);
-            }
-            None => self.namespace_list.append_to_list(namespace),
-        };
+        if let Some(existing_index) = existing_index {
+            self.namespace_list.inner_list.remove(existing_index);
+        }
+
+        self.namespace_list.append_to_list(NamespaceItem {
+            spinner: None,
+            value: namespace,
+        });
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
@@ -76,9 +89,7 @@ impl NamespacesList {
                 ListEvent::Quit => {
                     self.event_sender.send(AppEvent::Quit);
                 }
-                ListEvent::SelectedItem(item) => {
-                    self.event_sender.send(AppEvent::LoadPodsForNamespace(item));
-                }
+                ListEvent::SelectedItem(item) => self.load_pods(item).await,
                 ListEvent::StayInList => {}
             };
             return true;
@@ -91,5 +102,69 @@ impl NamespacesList {
         };
 
         handle_general_keys(key, &self.event_sender)
+    }
+
+    pub async fn load_pods(&mut self, namespace_item: NamespaceItem) {
+        let namespace_from_list = self
+            .namespace_list
+            .inner_list
+            .iter_mut()
+            .find(|namespace| namespace.value.as_str() == namespace_item.value.as_str())
+            .unwrap();
+
+        let mut spinner = Spinner::new();
+
+        namespace_from_list.spinner = Some(spinner.clone());
+        let namespace = namespace_item.value.clone();
+        let event_sender = self.event_sender.clone();
+
+        tokio::spawn(async move {
+            let pods = match get_pods_list(namespace.as_str()).await {
+                Ok(pods) => pods,
+                Err(err) => {
+                    event_sender.send(AppEvent::ShowNotification(Notification::error(err)));
+                    spinner.stop();
+                    return;
+                }
+            };
+
+            event_sender.send(AppEvent::ShowPods { pods, namespace });
+            spinner.stop();
+        });
+    }
+}
+
+impl From<NamespaceItem> for NamespaceItemCache {
+    fn from(value: NamespaceItem) -> Self {
+        Self { value: value.value }
+    }
+}
+
+impl From<NamespaceItemCache> for NamespaceItem {
+    fn from(value: NamespaceItemCache) -> Self {
+        Self {
+            value: value.value,
+            spinner: None,
+        }
+    }
+}
+
+impl ListItemTrait for NamespaceItem {
+    fn as_ref(&self) -> &str {
+        self.value.as_str()
+    }
+
+    fn spinner(&self) -> Option<String> {
+        self.spinner
+            .as_ref()
+            .and_then(|spinner| spinner.get_spin_state().map(|spinner| spinner.to_string()))
+    }
+}
+
+impl From<NamespacesList> for NamespacesListCache {
+    fn from(value: NamespacesList) -> Self {
+        Self {
+            namespace_list: value.namespace_list.into(),
+        }
     }
 }
