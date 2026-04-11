@@ -6,7 +6,10 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Clear, List, ListItem, ListState, Paragraph},
+    widgets::{
+        Clear, List, ListItem, ListState, Paragraph, Scrollbar, ScrollbarOrientation,
+        ScrollbarState,
+    },
 };
 use serde_json::Value;
 
@@ -26,6 +29,7 @@ pub struct PodLogs {
     event_sender: EventSender,
     logs: Vec<String>,
     state: ListState,
+    scrollbar_state: ScrollbarState,
     filtered_list: Vec<usize>,
     filters: Vec<String>,
     add_new_filter_mod: bool,
@@ -62,6 +66,7 @@ impl PodLogs {
             event_sender,
             active_filter_index: 0,
             filters: Vec::new(),
+            scrollbar_state: ScrollbarState::new(prettified_logs.len()),
             add_new_filter_mod: false,
             edit_filters_mod: false,
             filtered_list: prettified_logs
@@ -127,11 +132,18 @@ impl PodLogs {
 
             frame.render_widget(filter_widget, layouts[0]);
             frame.render_stateful_widget(list, layouts[1], &mut self.state);
+            self.render_scrollbar(layouts[1], frame);
             return;
         }
 
         frame.render_widget(Clear, area);
         frame.render_stateful_widget(list, area, &mut self.state);
+        self.render_scrollbar(area, frame);
+    }
+
+    fn render_scrollbar(&mut self, area: Rect, frame: &mut Frame) {
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
+        frame.render_stateful_widget(scrollbar, area, &mut self.scrollbar_state);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
@@ -248,6 +260,7 @@ impl PodLogs {
             KeyCode::Char('G') => {
                 if !self.filtered_list.is_empty() {
                     self.state.select(Some(self.filtered_list.len() - 1));
+                    self.scrollbar_state.last();
                 }
             }
 
@@ -258,6 +271,7 @@ impl PodLogs {
             KeyCode::Char('g') => {
                 if !self.filtered_list.is_empty() {
                     self.state.select(Some(0));
+                    self.scrollbar_state.first();
                 }
             }
 
@@ -288,18 +302,27 @@ impl PodLogs {
             return self.state.select(None);
         }
 
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == self.filtered_list.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
+        let prev_state = self.state.selected();
+        let last = self.filtered_list.len() - 1;
+
+        let new_state = match prev_state {
+            Some(i) if i == last => 0,
+            Some(i) => i + 1,
             None => 0,
         };
 
-        self.state.select(Some(i));
+        self.state.select(Some(new_state));
+
+        let scrollbar_first = match prev_state {
+            None => true,
+            Some(i) => i == last,
+        };
+
+        if scrollbar_first {
+            self.scrollbar_state.first();
+        } else {
+            self.scrollbar_state.next();
+        }
     }
 
     fn select_prev(&mut self) {
@@ -307,18 +330,21 @@ impl PodLogs {
             return self.state.select(None);
         }
 
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.filtered_list.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => self.filtered_list.len() - 1,
+        let perv_state = self.state.selected();
+        let last = self.filtered_list.len() - 1;
+
+        let new_state = match perv_state {
+            Some(0) => last,
+            Some(i) => i - 1,
+            None => last,
         };
 
-        self.state.select(Some(i));
+        self.state.select(Some(new_state));
+
+        match perv_state {
+            None | Some(0) => self.scrollbar_state.last(),
+            Some(_) => self.scrollbar_state.prev(),
+        }
     }
 
     fn update_filtered_list(&mut self) {
@@ -335,5 +361,8 @@ impl PodLogs {
             })
             .map(|(index, _)| index)
             .collect();
+
+        self.state.select(None);
+        self.scrollbar_state.first();
     }
 }
