@@ -4,7 +4,7 @@ use ratatui::{
     layout::Rect,
     style::{Style, Styled},
     text::{Line, Span},
-    widgets::{Clear, List, ListItem, ListState},
+    widgets::{Clear, List, ListItem, ListState, ScrollbarState},
 };
 
 use crate::app::{
@@ -12,6 +12,7 @@ use crate::app::{
     common::{FOCUS_COLOR, build_block},
 };
 
+pub mod scroll;
 pub mod title;
 
 #[derive(Default, Debug, Clone)]
@@ -20,9 +21,11 @@ pub struct FilterableList<T> {
     pub state: ListState,
     title: String,
     is_filterable: bool,
+    scrollbar_state: ScrollbarState,
     filtered_list: Vec<usize>,
     filter: String,
     is_filter_mod: bool,
+    show_scrollable: bool,
 }
 
 pub trait ListItemTrait {
@@ -56,6 +59,7 @@ where
             filter: value.filter,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
+            show_scrollable: value.show_scrollable,
             list: value
                 .inner_list
                 .into_iter()
@@ -80,8 +84,11 @@ where
         state.select(value.state.selected);
 
         Self {
+            scrollbar_state: ScrollbarState::new(value.filtered_list.len())
+                .position(state.selected().unwrap_or(0)),
             filter: value.filter,
             filtered_list: value.filtered_list,
+            show_scrollable: value.show_scrollable,
             is_filter_mod: value.is_filter_mod,
             inner_list: value.list.into_iter().map(|item| item.into()).collect(),
             state,
@@ -100,16 +107,32 @@ where
         self.update_filtered_list();
     }
 
-    pub fn new(list_name: String, is_filterable: bool) -> Self {
+    pub fn scrollable(self) -> Self {
+        Self {
+            show_scrollable: true,
+            ..self
+        }
+    }
+
+    pub fn filterable(self) -> Self {
+        Self {
+            is_filterable: true,
+            ..self
+        }
+    }
+
+    pub fn new(list_name: String) -> Self {
         let mut state = ListState::default();
         state.select(Some(0));
 
         Self {
+            scrollbar_state: ScrollbarState::new(0),
             filter: String::new(),
             filtered_list: vec![],
+            show_scrollable: false,
             is_filter_mod: false,
             inner_list: vec![],
-            is_filterable,
+            is_filterable: false,
             title: list_name,
             state,
         }
@@ -131,6 +154,7 @@ where
 
         self.inner_list = new_list;
         self.state.select(Some(0));
+        self.scrollbar_state = ScrollbarState::new(self.filtered_list.len());
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
@@ -177,6 +201,10 @@ where
 
         frame.render_widget(Clear, area);
         frame.render_stateful_widget(list, area, &mut self.state);
+
+        if self.show_scrollable {
+            scroll::render_scrollbar(area, frame, &mut self.scrollbar_state);
+        }
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Option<ListEvent<Item>> {
@@ -210,16 +238,29 @@ where
             KeyCode::Char('/') if self.is_filterable => {
                 self.is_filter_mod = true;
             }
-            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
+
+            KeyCode::Char('j') | KeyCode::Down => scroll::select_next(
+                &self.filtered_list,
+                &mut self.state,
+                &mut self.scrollbar_state,
+            ),
+
+            KeyCode::Char('k') | KeyCode::Up => scroll::select_prev(
+                &self.filtered_list,
+                &mut self.state,
+                &mut self.scrollbar_state,
+            ),
+
             KeyCode::Char('G') => {
                 if !self.filtered_list.is_empty() {
                     self.state.select(Some(self.filtered_list.len() - 1));
+                    self.scrollbar_state.last();
                 }
             }
             KeyCode::Char('g') => {
                 if !self.filtered_list.is_empty() {
                     self.state.select(Some(0));
+                    self.scrollbar_state.first();
                 }
             }
             KeyCode::Enter => {
@@ -267,44 +308,10 @@ where
             })
             .map(|(index, _)| index)
             .collect();
-    }
 
-    fn select_next(&mut self) {
-        if self.filtered_list.is_empty() {
-            return self.state.select(None);
-        }
-
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == self.filtered_list.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-
-        self.state.select(Some(i));
-    }
-
-    fn select_prev(&mut self) {
-        if self.filtered_list.is_empty() {
-            return self.state.select(None);
-        }
-
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.filtered_list.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => self.filtered_list.len() - 1,
-        };
-
-        self.state.select(Some(i));
+        self.state.select(Some(0));
+        self.scrollbar_state = ScrollbarState::new(self.filtered_list.len());
+        self.scrollbar_state.first();
     }
 }
 

@@ -43,7 +43,7 @@ impl ClustersList {
 
     pub fn new(event_sender: EventSender) -> Self {
         Self {
-            list: FilterableList::new(String::from("Clusters"), true),
+            list: FilterableList::new(String::from("Clusters")).filterable(),
             event_sender,
         }
     }

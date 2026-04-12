@@ -32,7 +32,9 @@ impl NamespacesList {
     pub fn new(event_sender: EventSender) -> Self {
         Self {
             event_sender,
-            namespace_list: FilterableList::new("Namespaces".to_string(), true),
+            namespace_list: FilterableList::new("Namespaces".to_string())
+                .filterable()
+                .scrollable(),
         }
     }
 

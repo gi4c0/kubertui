@@ -6,16 +6,13 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{
-        Clear, List, ListItem, ListState, Paragraph, Scrollbar, ScrollbarOrientation,
-        ScrollbarState,
-    },
+    widgets::{Clear, List, ListItem, ListState, Paragraph, ScrollbarState},
 };
 use serde_json::Value;
 
 use crate::{
     app::{
-        common::{FOCUS_COLOR, HelpMenuEnum, build_block},
+        common::{FOCUS_COLOR, HelpMenuEnum, build_block, scroll},
         events::{AppEvent, EventSender},
         main::logs::log_item::LogItem,
     },
@@ -132,18 +129,13 @@ impl PodLogs {
 
             frame.render_widget(filter_widget, layouts[0]);
             frame.render_stateful_widget(list, layouts[1], &mut self.state);
-            self.render_scrollbar(layouts[1], frame);
+            scroll::render_scrollbar(layouts[1], frame, &mut self.scrollbar_state);
             return;
         }
 
         frame.render_widget(Clear, area);
         frame.render_stateful_widget(list, area, &mut self.state);
-        self.render_scrollbar(area, frame);
-    }
-
-    fn render_scrollbar(&mut self, area: Rect, frame: &mut Frame) {
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
-        frame.render_stateful_widget(scrollbar, area, &mut self.scrollbar_state);
+        scroll::render_scrollbar(area, frame, &mut self.scrollbar_state);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
@@ -254,8 +246,17 @@ impl PodLogs {
                 self.edit_filters_mod = true;
             }
 
-            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
+            KeyCode::Char('j') | KeyCode::Down => scroll::select_next(
+                &self.filtered_list,
+                &mut self.state,
+                &mut self.scrollbar_state,
+            ),
+
+            KeyCode::Char('k') | KeyCode::Up => scroll::select_prev(
+                &self.filtered_list,
+                &mut self.state,
+                &mut self.scrollbar_state,
+            ),
 
             KeyCode::Char('G') => {
                 if !self.filtered_list.is_empty() {
@@ -297,56 +298,6 @@ impl PodLogs {
         false
     }
 
-    fn select_next(&mut self) {
-        if self.filtered_list.is_empty() {
-            return self.state.select(None);
-        }
-
-        let prev_state = self.state.selected();
-        let last = self.filtered_list.len() - 1;
-
-        let new_state = match prev_state {
-            Some(i) if i == last => 0,
-            Some(i) => i + 1,
-            None => 0,
-        };
-
-        self.state.select(Some(new_state));
-
-        let scrollbar_first = match prev_state {
-            None => true,
-            Some(i) => i == last,
-        };
-
-        if scrollbar_first {
-            self.scrollbar_state.first();
-        } else {
-            self.scrollbar_state.next();
-        }
-    }
-
-    fn select_prev(&mut self) {
-        if self.filtered_list.is_empty() {
-            return self.state.select(None);
-        }
-
-        let perv_state = self.state.selected();
-        let last = self.filtered_list.len() - 1;
-
-        let new_state = match perv_state {
-            Some(0) => last,
-            Some(i) => i - 1,
-            None => last,
-        };
-
-        self.state.select(Some(new_state));
-
-        match perv_state {
-            None | Some(0) => self.scrollbar_state.last(),
-            Some(_) => self.scrollbar_state.prev(),
-        }
-    }
-
     fn update_filtered_list(&mut self) {
         self.filtered_list = self
             .logs
@@ -363,6 +314,7 @@ impl PodLogs {
             .collect();
 
         self.state.select(None);
+        self.scrollbar_state = ScrollbarState::new(self.filtered_list.len());
         self.scrollbar_state.first();
     }
 }

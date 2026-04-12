@@ -117,7 +117,7 @@ impl PortForwardsList {
 
         Self {
             event_sender,
-            list: FilterableList::new("Recent Port Forwards".to_string(), true),
+            list: FilterableList::new("Recent Port Forwards".to_string()).filterable(),
         }
     }
 

@@ -62,7 +62,7 @@ impl PortForwardPopup {
             selected_container = Some(container);
         }
 
-        let mut list = FilterableList::new("Select container".to_string(), false);
+        let mut list = FilterableList::new("Select container".to_string());
         list.set_items(pod_containers);
 
         Self {

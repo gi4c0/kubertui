@@ -163,6 +163,7 @@ pub struct FilterableListCache<T> {
     pub list: Vec<T>,
     pub state: StateCache,
     pub title: String,
+    pub show_scrollable: bool,
     pub is_filterable: bool,
     pub filtered_list: Vec<usize>,
     pub filter: String,
