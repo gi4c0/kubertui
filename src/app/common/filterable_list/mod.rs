@@ -157,15 +157,14 @@ where
         self.scrollbar_state = ScrollbarState::new(self.filtered_list.len());
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        self.draw_with_title(area, frame, is_focused, self.title.clone());
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+        self.draw_with_title(area, frame, self.title.clone());
     }
 
     pub fn draw_with_title<'a>(
         &mut self,
         area: Rect,
         frame: &mut Frame,
-        is_focused: bool,
         title: impl Into<Line<'a>>,
     ) {
         let list_items: Vec<ListItem> = self
@@ -188,7 +187,7 @@ where
             })
             .collect();
 
-        let mut block = build_block(title, is_focused);
+        let mut block = build_block(title, false);
 
         if self.is_filter_mod || !self.filter.is_empty() {
             block = block

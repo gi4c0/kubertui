@@ -13,7 +13,7 @@ use crate::{
         cache::{PodsListCache, StateCache},
         common::{HelpMenuEnum, Spinner, build_block, get_highlight_style},
         events::{AppEvent, EventSender},
-        main::{
+        main::pods::{
             logs::PodLogs,
             pods_list::{
                 delete_pod_alert::{DeletePodAction, DeletePodAlert},
@@ -138,7 +138,7 @@ impl PodsList {
         self.state.select(Some(0));
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         let header = ["Name", "Containers"]
             .into_iter()
             .map(Cell::from)
@@ -165,7 +165,7 @@ impl PodsList {
             })
             .collect();
 
-        let block = build_block("Select pod", is_focused && !self.is_filter_mod);
+        let block = build_block("Select pod", false);
 
         let table = Table::new(
             rows,

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    app::{ActiveWindow, App, MainWindowKind, side_bar::rootspaces::RootSpaceWindowKind},
+    app::{MainWindowKind, App, MainWindowKind, side_bar::rootspaces::RootSpaceWindowKind},
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},
     kubectl::pods::{Pod, PodContainer},
@@ -70,7 +70,7 @@ pub struct MainWindowCache {
 pub struct AppCache {
     pub main: MainWindowCache,
     pub side_bar: SideBarCache,
-    pub active_window: ActiveWindow,
+    pub active_window: MainWindowKind,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -31,10 +31,10 @@ impl LogItem {
         }
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         let paragraph = Paragraph::new(self.text.as_str())
             .wrap(Wrap { trim: false })
-            .block(build_block(self.pod_name.as_str(), is_focused))
+            .block(build_block(self.pod_name.as_str(), false))
             .scroll((self.scroll, 0));
 
         frame.render_widget(Clear, area);

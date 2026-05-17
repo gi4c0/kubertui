@@ -1,108 +1,89 @@
+use crate::app::main::namespaces_list::NamespacesList;
+use crate::app::main::pods::Pods;
+use crate::app::main::port_forwards::PortForwardsList;
+use crate::app::{MainWindowKind, main::pods::logs::PodLogs};
 use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::{
-        cache::MainWindowCache,
-        events::EventSender,
-        main::{logs::PodLogs, pods_list::PodsList},
-    },
-    error::AppResult,
+    app::{cache::MainWindowCache, events::EventSender, main::clusters_list::ClustersList},
     kubectl::pods::Pod,
 };
 
-pub mod logs;
-pub mod pods_list;
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub enum MainWindowKind {
-    Pods,
-    Logs,
-}
+mod clusters_list;
+mod namespaces_list;
+pub mod pods;
+mod port_forwards;
 
 #[derive(Debug, Clone)]
 pub struct MainWindow {
-    pods_list: Option<PodsList>,
-    pod_logs: Option<PodLogs>,
     event_sender: EventSender,
     kind: MainWindowKind,
+    clusters: ClustersList,
+    namespaces: NamespacesList,
+    pods: Pods,
+    port_forwards: PortForwardsList,
 }
 
-impl From<MainWindow> for MainWindowCache {
-    fn from(value: MainWindow) -> Self {
-        Self {
-            pods_list: value.pods_list.map(|pods_list| pods_list.into()),
-            kind: value.kind,
-        }
-    }
-}
+// impl From<MainWindow> for MainWindowCache {
+//     fn from(value: MainWindow) -> Self {
+//         Self {
+//             pods_list: value.pods_list.map(|pods_list| pods_list.into()),
+//             kind: value.kind,
+//         }
+//     }
+// }
 
 impl MainWindow {
     pub fn show_logs(&mut self, logs: PodLogs) {
-        self.pod_logs = Some(logs);
-        self.kind = MainWindowKind::Logs;
+        self.pods.show_logs(logs);
     }
 
     pub fn new(event_sender: EventSender) -> Self {
         Self {
-            event_sender,
-            pods_list: None,
-            kind: MainWindowKind::Pods,
-            pod_logs: None,
+            event_sender: event_sender.clone(),
+            kind: MainWindowKind::Clusters,
+            clusters: ClustersList::new(event_sender.clone()),
+            namespaces: NamespacesList::new(event_sender.clone()),
+            pods: Pods::new(event_sender.clone()),
+            port_forwards: PortForwardsList::new(event_sender.clone()),
         }
     }
 
-    pub async fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) -> AppResult<()> {
-        let pod_list = PodsList::new(self.event_sender.clone(), namespace, pods);
-
-        self.pods_list = Some(pod_list);
-        self.kind = MainWindowKind::Pods;
-        Ok(())
+    pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
+        self.pods.show_pods(namespace, pods);
     }
 
     pub fn from_cache(value: MainWindowCache, event_sender: EventSender) -> Self {
-        Self {
-            pods_list: value
-                .pods_list
-                .map(|pods_list| PodsList::from_cache(pods_list, event_sender.clone())),
-            event_sender,
-            kind: value.kind,
-            pod_logs: None,
-        }
+        todo!()
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {
         match self.kind {
-            MainWindowKind::Pods => {
-                if let Some(pods_list) = &mut self.pods_list {
-                    pods_list.handle_key_event(key).await;
-                }
+            MainWindowKind::Namespaces => {
+                self.namespaces.handle_key_event(key).await;
             }
 
-            MainWindowKind::Logs => {
-                if let Some(pods_logs) = &mut self.pod_logs {
-                    let should_close = pods_logs.handle_key_event(key);
+            MainWindowKind::Clusters => {
+                self.clusters.handle_key_event(key).await;
+            }
 
-                    if should_close {
-                        self.pod_logs = None;
-                        self.kind = MainWindowKind::Pods;
-                    }
-                }
+            MainWindowKind::PortForward => {
+                self.port_forwards.handle_key_event(key).await;
+            }
+
+            MainWindowKind::Pods => {
+                self.pods.handle_key_event(key).await;
             }
         }
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         match self.kind {
-            MainWindowKind::Pods => self
-                .pods_list
-                .as_mut()
-                .map(|pods_list| pods_list.draw(area, frame, is_focused)),
-
-            MainWindowKind::Logs => self
-                .pod_logs
-                .as_mut()
-                .map(|pod_logs| pod_logs.draw(area, frame, is_focused)),
+            MainWindowKind::Clusters => self.clusters.draw(area, frame),
+            MainWindowKind::Namespaces => self.namespaces.draw(area, frame),
+            MainWindowKind::Pods => self.pods.draw(area, frame),
+            MainWindowKind::PortForward => self.port_forwards.draw(area, frame),
         };
     }
 }

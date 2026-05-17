@@ -28,7 +28,7 @@ pub struct PortForwardsList {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct PortForward {
+struct PortForward {
     namespace: String,
     pod_name: String,
     local_port: u16,
@@ -224,8 +224,8 @@ impl PortForwardsList {
         self.add_to_list(pod);
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
-        self.list.draw(area, frame, is_focused);
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+        self.list.draw(area, frame);
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {

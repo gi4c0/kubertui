@@ -7,7 +7,9 @@ use ratatui::crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{ActiveWindow, common::HelpMenuEnum, main::logs::PodLogs, notification::Notification},
+    app::{
+        MainWindowKind, common::HelpMenuEnum, main::pods::logs::PodLogs, notification::Notification,
+    },
     error::{AppError, AppResult},
     kubectl::pods::Pod,
 };
@@ -17,7 +19,7 @@ const TICK_FPS: f64 = 30.0;
 pub enum AppEvent {
     Crossterm(CrosstermEvent),
     Tick,
-    Focus(ActiveWindow),
+    Focus(MainWindowKind),
     FocusNext,
     FocusPrev,
     FocusSwitch,
@@ -58,6 +60,7 @@ impl EventSender {
 
 impl EventHandler {
     pub fn new() -> Self {
+        // TODO: maybe use mpmc?
         let (sender, receiver) = mpsc::unbounded_channel();
 
         let actor = EventTask::new(sender.clone());

@@ -1,9 +1,9 @@
 pub mod cache;
 pub mod common;
 mod events;
+mod header;
 mod main;
 mod notification;
-mod side_bar;
 
 use std::env;
 
@@ -13,45 +13,58 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
 };
 use serde::{Deserialize, Serialize};
+use strum_macros::{AsRefStr, VariantArray};
 
 use crate::{
     app::{
         cache::AppCache,
         common::HelpMenu,
         events::{AppEvent, EventHandler},
-        main::{MainWindow, MainWindowKind},
+        header::Header,
+        main::MainWindow,
         notification::NotificationWidget,
-        side_bar::{SideBar, SideBarWindow},
     },
     error::AppResult,
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub enum ActiveWindow {
-    Main,
-    SideBar(SideBarWindow),
+#[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone)]
+pub enum PodWindow {
+    List,
+    Info,
+    Logs,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone, VariantArray, AsRefStr)]
+pub enum MainWindowKind {
+    Clusters,
+    Namespaces,
+    Pods,
+    #[strum(serialize = "Port Forward")]
+    PortForward,
 }
 
 pub struct App {
-    main: MainWindow,
-    side_bar: SideBar,
+    header: Header,
+    main_window: MainWindow,
     exit: bool,
-    active_window: ActiveWindow,
+    active_window: MainWindowKind,
     event_handler: EventHandler,
     notification: Option<NotificationWidget>,
+    // TODO: refactor items to be executable
     help_menu: HelpMenu,
-    last_active_sidebar: SideBarWindow,
 }
 
 impl App {
     const CACHE_KEY: &'static str = "KUBERTUI_USE_CACHE";
 
-    const FOCUS_ORDER: [ActiveWindow; 2] = [
-        ActiveWindow::SideBar(SideBarWindow::Namespaces),
-        ActiveWindow::SideBar(SideBarWindow::RecentPortForwards),
+    const FOCUS_ORDER: [MainWindowKind; 4] = [
+        MainWindowKind::Clusters,
+        MainWindowKind::Namespaces,
+        MainWindowKind::Pods,
+        MainWindowKind::PortForward,
     ];
 
-    fn next_focus(&self) -> ActiveWindow {
+    fn next_focus(&self) -> MainWindowKind {
         let active_index = Self::FOCUS_ORDER
             .iter()
             .position(|item| *item == self.active_window)
@@ -62,7 +75,7 @@ impl App {
             .unwrap_or(Self::FOCUS_ORDER.first().unwrap())
     }
 
-    fn prev_focus(&self) -> ActiveWindow {
+    fn prev_focus(&self) -> MainWindowKind {
         let active_index = Self::FOCUS_ORDER
             .iter()
             .position(|item| *item == self.active_window)
@@ -95,23 +108,18 @@ impl App {
     }
 
     async fn initial_load(&mut self) -> AppResult<()> {
-        self.side_bar.initial_load().await
+        self.clusters.load_clusters().await
     }
 
     fn draw(&mut self, frame: &mut Frame) {
         let layouts = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(25), Constraint::Percentage(75)])
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(10), Constraint::Fill(1)])
             .split(frame.area());
 
-        let side_bar_focus = match self.active_window {
-            ActiveWindow::SideBar(w) => Some(w),
-            _ => None,
-        };
+        self.header.draw(layouts[0], frame);
 
-        self.side_bar.draw(layouts[0], frame, side_bar_focus);
-        self.main
-            .draw(layouts[1], frame, self.active_window == ActiveWindow::Main);
+        // TODO: draw main window
 
         if let Some(notification) = &mut self.notification {
             notification.draw(frame);
@@ -139,7 +147,7 @@ impl App {
                 self.side_bar.root_space.add_to_recent(namespace.clone());
 
                 self.main.show_pods(namespace, pods).await?;
-                self.active_window = ActiveWindow::Main;
+                self.active_window = MainWindowKind::Main;
             }
 
             AppEvent::LoadNamespaces(namespaces) => {
@@ -161,7 +169,7 @@ impl App {
             }
 
             AppEvent::ClosePodsList => {
-                self.active_window = ActiveWindow::SideBar(SideBarWindow::Namespaces)
+                self.active_window = MainWindowKind::SideBar(SideBarWindow::Namespaces)
             }
 
             AppEvent::ShowNotification(notification) => {
@@ -175,10 +183,10 @@ impl App {
 
             AppEvent::FocusSwitch => {
                 self.active_window = match self.active_window {
-                    ActiveWindow::Main => ActiveWindow::SideBar(self.last_active_sidebar),
-                    ActiveWindow::SideBar(side_bar) => {
+                    MainWindowKind::Main => MainWindowKind::SideBar(self.last_active_sidebar),
+                    MainWindowKind::SideBar(side_bar) => {
                         self.last_active_sidebar = side_bar;
-                        ActiveWindow::Main
+                        MainWindowKind::Main
                     }
                 }
             }
@@ -206,8 +214,10 @@ impl App {
         }
 
         match &self.active_window {
-            ActiveWindow::Main => self.main.handle_key_event(key).await,
-            ActiveWindow::SideBar(side_bar) => self.side_bar.handle_key_event(key, *side_bar).await,
+            MainWindowKind::Main => self.main.handle_key_event(key).await,
+            MainWindowKind::SideBar(side_bar) => {
+                self.side_bar.handle_key_event(key, *side_bar).await
+            }
         }
     }
 
@@ -223,7 +233,7 @@ impl Default for App {
         let event_handler = EventHandler::new();
 
         Self {
-            active_window: ActiveWindow::SideBar(SideBarWindow::Namespaces),
+            active_window: MainWindowKind::SideBar(SideBarWindow::Namespaces),
             last_active_sidebar: SideBarWindow::Namespaces,
             help_menu: HelpMenu::default(),
             side_bar: SideBar::new(event_handler.sender()),

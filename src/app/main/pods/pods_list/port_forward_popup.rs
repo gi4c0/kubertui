@@ -86,7 +86,7 @@ impl PortForwardPopup {
         }
 
         let area = centered_rect(frame.area(), 30, self.containers_len() as u16 + 3);
-        self.pod_containers_list.draw(area, frame, true);
+        self.pod_containers_list.draw(area, frame);
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<PortForwardPopupAction> {

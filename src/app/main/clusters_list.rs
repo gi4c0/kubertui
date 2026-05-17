@@ -3,7 +3,6 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyEvent},
     layout::Rect,
     style::Style,
-    text::Line,
 };
 
 use crate::{
@@ -65,14 +64,8 @@ impl ClustersList {
         Ok(())
     }
 
-    pub fn draw<'a>(
-        &'a mut self,
-        area: Rect,
-        frame: &mut Frame,
-        is_focused: bool,
-        title: impl Into<Line<'a>>,
-    ) {
-        self.list.draw_with_title(area, frame, is_focused, title);
+    pub fn draw<'a>(&'a mut self, area: Rect, frame: &mut Frame) {
+        self.list.draw_with_title(area, frame, "Clusters");
     }
 
     async fn on_cluster_selected(&mut self, cluster: Cluster) {

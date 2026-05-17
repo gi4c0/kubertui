@@ -14,7 +14,7 @@ use crate::{
     app::{
         common::{FOCUS_COLOR, HelpMenuEnum, build_block, scroll},
         events::{AppEvent, EventSender},
-        main::logs::log_item::LogItem,
+        main::pods::logs::log_item::LogItem,
     },
     error::AppResult,
     kubectl,
@@ -77,9 +77,9 @@ impl PodLogs {
         })
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame, is_focused: bool) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         if let Some(selected_log) = &mut self.selected_log {
-            return selected_log.draw(area, frame, is_focused);
+            return selected_log.draw(area, frame);
         }
 
         let list_items: Vec<ListItem> = self
@@ -91,7 +91,7 @@ impl PodLogs {
             })
             .collect();
 
-        let block = build_block(self.pod_name.as_str(), is_focused);
+        let block = build_block(self.pod_name.as_str(), false);
         let list = List::new(list_items).block(block).highlight_style(
             Style::default()
                 .bg(Color::Gray)

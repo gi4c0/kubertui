@@ -13,7 +13,6 @@ use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
     layout::Rect,
-    text::Line,
 };
 
 #[derive(Debug, Clone)]
@@ -38,15 +37,9 @@ impl NamespacesList {
         }
     }
 
-    pub fn draw<'a>(
-        &'a mut self,
-        area: Rect,
-        frame: &mut Frame,
-        is_focused: bool,
-        title: impl Into<Line<'a>>,
-    ) {
+    pub fn draw<'a>(&'a mut self, area: Rect, frame: &mut Frame) {
         self.namespace_list
-            .draw_with_title(area, frame, is_focused, title);
+            .draw_with_title(area, frame, "Namespaces");
     }
 
     pub fn from_cache(list: NamespacesListCache, event_sender: EventSender) -> Self {
@@ -85,6 +78,7 @@ impl NamespacesList {
         });
     }
 
+    // TODO: delete return type if not needed
     pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(list_event) = self.namespace_list.handle_key(key) {
             match list_event {
