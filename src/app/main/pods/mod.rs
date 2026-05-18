@@ -1,19 +1,21 @@
 use crossterm::event::KeyEvent;
 use ratatui::{Frame, layout::Rect};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
+        cache::PodsCache,
+        common::handle_general_keys,
         events::EventSender,
         main::pods::{logs::PodLogs, pods_list::PodsList},
     },
-    error::AppResult,
     kubectl::pods::Pod,
 };
 
 pub mod logs;
 pub mod pods_list;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PodsKind {
     List,
     Logs,
@@ -38,6 +40,16 @@ impl Pods {
         }
     }
 
+    pub fn from_cache(value: PodsCache, event_sender: EventSender) -> Self {
+        Self {
+            kind: value.kind,
+            pods_list: value
+                .pods_list
+                .map(|pods_list| PodsList::from_cache(pods_list, event_sender.clone())),
+            event_sender,
+            pod_logs: None,
+        }
+    }
     pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
         let pod_list = PodsList::new(self.event_sender.clone(), namespace, pods);
 
@@ -83,6 +95,17 @@ impl Pods {
             }
 
             PodsKind::Info => todo!(),
+        };
+
+        handle_general_keys(key, &self.event_sender);
+    }
+}
+
+impl From<Pods> for PodsCache {
+    fn from(value: Pods) -> Self {
+        Self {
+            kind: value.kind,
+            pods_list: value.pods_list.map(|item| item.into()),
         }
     }
 }

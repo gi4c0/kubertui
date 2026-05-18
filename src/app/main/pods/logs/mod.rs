@@ -35,6 +35,7 @@ pub struct PodLogs {
     selected_log: Option<LogItem>,
 }
 
+// TODO: reload logs (fetch new)
 impl PodLogs {
     pub async fn load(
         namespace: String,
@@ -263,10 +264,6 @@ impl PodLogs {
                     self.state.select(Some(self.filtered_list.len() - 1));
                     self.scrollbar_state.last();
                 }
-            }
-
-            KeyCode::Tab | KeyCode::BackTab => {
-                self.event_sender.send(AppEvent::FocusSwitch);
             }
 
             KeyCode::Char('g') => {

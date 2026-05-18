@@ -6,10 +6,7 @@ use ratatui::{
 };
 use serde_json::Value;
 
-use crate::app::{
-    common::build_block,
-    events::{AppEvent, EventSender},
-};
+use crate::app::{common::build_block, events::EventSender};
 
 #[derive(Debug, Clone)]
 pub struct LogItem {
@@ -65,9 +62,6 @@ impl LogItem {
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return true,
             KeyCode::Char('j') | KeyCode::Down => self.scroll += 1,
-            KeyCode::Tab | KeyCode::BackTab => {
-                self.event_sender.send(AppEvent::FocusSwitch);
-            }
             KeyCode::Char('k') | KeyCode::Up => {
                 if self.scroll > 0 {
                     self.scroll -= 1;

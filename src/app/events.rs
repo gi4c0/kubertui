@@ -22,7 +22,6 @@ pub enum AppEvent {
     Focus(MainWindowKind),
     FocusNext,
     FocusPrev,
-    FocusSwitch,
     Quit,
     LoadNamespaces(Vec<String>),
     ShowPods {
@@ -36,7 +35,6 @@ pub enum AppEvent {
         namespace: String,
     },
     ShowLogs(PodLogs),
-    ClosePodsList,
     ShowNotification(Notification),
     HideNotification,
     ShowHelp(HelpMenuEnum),

@@ -27,13 +27,6 @@ use crate::{
     error::AppResult,
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone)]
-pub enum PodWindow {
-    List,
-    Info,
-    Logs,
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone, VariantArray, AsRefStr)]
 pub enum MainWindowKind {
     Clusters,
@@ -108,7 +101,7 @@ impl App {
     }
 
     async fn initial_load(&mut self) -> AppResult<()> {
-        self.clusters.load_clusters().await
+        self.main_window.initial_load().await
     }
 
     fn draw(&mut self, frame: &mut Frame) {
@@ -118,8 +111,7 @@ impl App {
             .split(frame.area());
 
         self.header.draw(layouts[0], frame);
-
-        // TODO: draw main window
+        self.main_window.draw(layouts[1], frame);
 
         if let Some(notification) = &mut self.notification {
             notification.draw(frame);
@@ -144,17 +136,18 @@ impl App {
                 cache::save_cache(self).await?;
             }
             AppEvent::ShowPods { pods, namespace } => {
-                self.side_bar.root_space.add_to_recent(namespace.clone());
-
-                self.main.show_pods(namespace, pods).await?;
-                self.active_window = MainWindowKind::Main;
+                // TODO: Implement recency
+                // self.side_bar.root_space.add_to_recent(namespace.clone());
+                self.main_window.show_pods(namespace, pods);
+                self.active_window = MainWindowKind::Pods;
             }
 
             AppEvent::LoadNamespaces(namespaces) => {
-                self.side_bar.load_namespaces(namespaces).await?
+                self.main_window.show_namespaces(namespaces);
+                self.update_active_window(MainWindowKind::Namespaces);
             }
 
-            AppEvent::ShowLogs(logs) => self.main.show_logs(logs),
+            AppEvent::ShowLogs(logs) => self.main_window.show_logs(logs),
 
             AppEvent::PortForward {
                 pod_name,
@@ -162,14 +155,9 @@ impl App {
                 app_port,
                 namespace,
             } => {
-                self.side_bar
-                    .port_forwards
+                self.main_window
                     .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
                     .await;
-            }
-
-            AppEvent::ClosePodsList => {
-                self.active_window = MainWindowKind::SideBar(SideBarWindow::Namespaces)
             }
 
             AppEvent::ShowNotification(notification) => {
@@ -181,18 +169,8 @@ impl App {
             AppEvent::HideNotification => self.notification = None,
             AppEvent::Focus(active_window) => self.active_window = active_window,
 
-            AppEvent::FocusSwitch => {
-                self.active_window = match self.active_window {
-                    MainWindowKind::Main => MainWindowKind::SideBar(self.last_active_sidebar),
-                    MainWindowKind::SideBar(side_bar) => {
-                        self.last_active_sidebar = side_bar;
-                        MainWindowKind::Main
-                    }
-                }
-            }
-
-            AppEvent::FocusNext => self.active_window = self.next_focus(),
-            AppEvent::FocusPrev => self.active_window = self.prev_focus(),
+            AppEvent::FocusNext => self.update_active_window(self.next_focus()),
+            AppEvent::FocusPrev => self.update_active_window(self.prev_focus()),
 
             AppEvent::ShowHelp(kind) => {
                 self.help_menu.show(kind);
@@ -213,18 +191,19 @@ impl App {
             return;
         }
 
-        match &self.active_window {
-            MainWindowKind::Main => self.main.handle_key_event(key).await,
-            MainWindowKind::SideBar(side_bar) => {
-                self.side_bar.handle_key_event(key, *side_bar).await
-            }
-        }
+        self.main_window.handle_key_event(key).await;
     }
 
     fn merge_cache(&mut self, cache: AppCache) {
         self.active_window = cache.active_window;
-        self.main = MainWindow::from_cache(cache.main, self.event_handler.sender());
-        self.side_bar = SideBar::from_cache(cache.side_bar, self.event_handler.sender());
+        self.main_window = MainWindow::from_cache(cache.main_window, self.event_handler.sender());
+        self.header = cache.header;
+    }
+
+    pub fn update_active_window(&mut self, new_active_window: MainWindowKind) {
+        self.active_window = new_active_window;
+        self.main_window.update_active_window(new_active_window);
+        self.header.set_active(new_active_window);
     }
 }
 
@@ -233,14 +212,13 @@ impl Default for App {
         let event_handler = EventHandler::new();
 
         Self {
-            active_window: MainWindowKind::SideBar(SideBarWindow::Namespaces),
-            last_active_sidebar: SideBarWindow::Namespaces,
+            active_window: MainWindowKind::Clusters,
             help_menu: HelpMenu::default(),
-            side_bar: SideBar::new(event_handler.sender()),
             exit: false,
-            main: MainWindow::new(event_handler.sender()),
+            main_window: MainWindow::new(event_handler.sender()),
             notification: None,
             event_handler,
+            header: Header::new(),
         }
     }
 }

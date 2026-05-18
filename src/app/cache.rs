@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    app::{MainWindowKind, App, MainWindowKind, side_bar::rootspaces::RootSpaceWindowKind},
+    app::{App, MainWindowKind, header::Header, main::pods::PodsKind},
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},
     kubectl::pods::{Pod, PodContainer},
@@ -16,9 +16,9 @@ pub async fn save_cache(app: &App) -> AppResult<()> {
     ensure_app_dir().await?;
 
     let cache_payload = AppCache {
-        main: app.main.clone().into(),
+        header: app.header.clone(),
+        main_window: app.main_window.clone().into(),
         active_window: app.active_window,
-        side_bar: app.side_bar.clone().into(),
     };
 
     let json = serde_json::to_string(&cache_payload)
@@ -62,34 +62,29 @@ pub struct ClusterCache {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MainWindowCache {
-    pub pods_list: Option<PodsListCache>,
     pub kind: MainWindowKind,
+    pub clusters: ClustersListCache,
+    pub namespaces: NamespacesListCache,
+    pub pods: PodsCache,
+    pub port_forwards: PortForwardsListCache,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PodsCache {
+    pub pods_list: Option<PodsListCache>,
+    pub kind: PodsKind,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppCache {
-    pub main: MainWindowCache,
-    pub side_bar: SideBarCache,
+    pub header: Header,
+    pub main_window: MainWindowCache,
     pub active_window: MainWindowKind,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RootSpaceCache {
-    pub recent: NamespacesListCache,
-    pub full_list: NamespacesListCache,
-    pub kind: RootSpaceWindowKind,
-    pub clusters: ClustersListCache,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClustersListCache {
     pub list: FilterableListCache<ClusterCache>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SideBarCache {
-    pub namespaces: RootSpaceCache,
-    pub port_forwards: PortForwardsListCache,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

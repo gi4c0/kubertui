@@ -1,9 +1,10 @@
+use crate::app::common::handle_general_keys;
 use crate::app::main::namespaces_list::NamespacesList;
 use crate::app::main::pods::Pods;
 use crate::app::main::port_forwards::PortForwardsList;
 use crate::app::{MainWindowKind, main::pods::logs::PodLogs};
+use crate::error::AppResult;
 use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{cache::MainWindowCache, events::EventSender, main::clusters_list::ClustersList},
@@ -25,20 +26,19 @@ pub struct MainWindow {
     port_forwards: PortForwardsList,
 }
 
-// impl From<MainWindow> for MainWindowCache {
-//     fn from(value: MainWindow) -> Self {
-//         Self {
-//             pods_list: value.pods_list.map(|pods_list| pods_list.into()),
-//             kind: value.kind,
-//         }
-//     }
-// }
+impl From<MainWindow> for MainWindowCache {
+    fn from(value: MainWindow) -> Self {
+        Self {
+            pods: value.pods.into(),
+            kind: value.kind,
+            clusters: value.clusters.into(),
+            namespaces: value.namespaces.into(),
+            port_forwards: value.port_forwards.into(),
+        }
+    }
+}
 
 impl MainWindow {
-    pub fn show_logs(&mut self, logs: PodLogs) {
-        self.pods.show_logs(logs);
-    }
-
     pub fn new(event_sender: EventSender) -> Self {
         Self {
             event_sender: event_sender.clone(),
@@ -50,12 +50,43 @@ impl MainWindow {
         }
     }
 
+    pub fn show_namespaces(&mut self, namespaces: Vec<String>) {
+        self.namespaces.set_namespaces(namespaces);
+    }
+
+    pub async fn add_to_list_and_port_forward(
+        &mut self,
+        namespace: String,
+        pod_name: String,
+        local_port: u16,
+        app_port: u16,
+    ) {
+        self.port_forwards
+            .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
+            .await;
+    }
+
+    pub fn show_logs(&mut self, logs: PodLogs) {
+        self.pods.show_logs(logs);
+    }
+
     pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
         self.pods.show_pods(namespace, pods);
     }
 
+    pub async fn initial_load(&mut self) -> AppResult<()> {
+        self.clusters.load_clusters().await
+    }
+
     pub fn from_cache(value: MainWindowCache, event_sender: EventSender) -> Self {
-        todo!()
+        Self {
+            pods: Pods::from_cache(value.pods, event_sender.clone()),
+            kind: value.kind,
+            clusters: ClustersList::from_cache(value.clusters, event_sender.clone()),
+            namespaces: NamespacesList::from_cache(value.namespaces, event_sender.clone()),
+            port_forwards: PortForwardsList::from_cache(value.port_forwards, event_sender.clone()),
+            event_sender: event_sender.clone(),
+        }
     }
 
     pub async fn handle_key_event(&mut self, key: KeyEvent) {
@@ -76,6 +107,8 @@ impl MainWindow {
                 self.pods.handle_key_event(key).await;
             }
         }
+
+        handle_general_keys(key, &self.event_sender);
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
@@ -85,5 +118,9 @@ impl MainWindow {
             MainWindowKind::Pods => self.pods.draw(area, frame),
             MainWindowKind::PortForward => self.port_forwards.draw(area, frame),
         };
+    }
+
+    pub fn update_active_window(&mut self, new_active_window: MainWindowKind) {
+        self.kind = new_active_window;
     }
 }

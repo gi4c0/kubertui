@@ -5,15 +5,23 @@ use ratatui::{
     text::Span,
     widgets::Clear,
 };
+use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
 use crate::app::MainWindowKind;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Header {
     active: MainWindowKind,
 }
 
 impl Header {
+    pub fn new() -> Self {
+        Self {
+            active: MainWindowKind::Clusters,
+        }
+    }
+
     pub fn set_active(&mut self, new_active: MainWindowKind) {
         self.active = new_active;
     }

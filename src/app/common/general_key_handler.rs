@@ -15,10 +15,6 @@ pub fn handle_general_keys(key: KeyEvent, event_sender: &EventSender) -> bool {
         KeyCode::Right | KeyCode::Char('l') => event_sender.send(AppEvent::FocusNext),
         KeyCode::Left | KeyCode::Char('h') => event_sender.send(AppEvent::FocusPrev),
 
-        KeyCode::Tab | KeyCode::BackTab => {
-            event_sender.send(AppEvent::FocusSwitch);
-        }
-
         _ => return false,
     };
 
