@@ -1,6 +1,7 @@
 use crossterm::event::KeyEvent;
 use ratatui::{Frame, layout::Rect};
 use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, VariantArray};
 
 use crate::{
     app::{
@@ -15,7 +16,7 @@ use crate::{
 pub mod logs;
 pub mod pods_list;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone, VariantArray, AsRefStr)]
 pub enum PodsKind {
     List,
     Logs,
@@ -96,8 +97,6 @@ impl Pods {
 
             PodsKind::Info => todo!(),
         };
-
-        handle_general_keys(key, &self.event_sender);
     }
 }
 

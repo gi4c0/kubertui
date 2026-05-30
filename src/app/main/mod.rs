@@ -71,6 +71,7 @@ impl MainWindow {
     }
 
     pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
+        self.kind = MainWindowKind::Pods;
         self.pods.show_pods(namespace, pods);
     }
 
@@ -92,11 +93,15 @@ impl MainWindow {
     pub async fn handle_key_event(&mut self, key: KeyEvent) {
         match self.kind {
             MainWindowKind::Namespaces => {
-                self.namespaces.handle_key_event(key).await;
+                if self.namespaces.handle_key_event(key).await {
+                    return;
+                }
             }
 
             MainWindowKind::Clusters => {
-                self.clusters.handle_key_event(key).await;
+                if self.clusters.handle_key_event(key).await {
+                    return;
+                };
             }
 
             MainWindowKind::PortForward => {

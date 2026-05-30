@@ -303,7 +303,7 @@ impl PodsList {
                 .event_sender
                 .send(AppEvent::ShowHelp(HelpMenuEnum::Pods)),
 
-            KeyCode::Char('l') => {
+            KeyCode::Char('L') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
                 let pod_container = &mut self.original_list[index];
 

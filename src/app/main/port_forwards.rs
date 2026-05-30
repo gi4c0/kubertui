@@ -12,9 +12,7 @@ use tokio::{sync::Mutex, time::sleep};
 use crate::{
     app::{
         cache::{PortForwardCache, PortForwardsListCache},
-        common::{
-            FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner, handle_general_keys,
-        },
+        common::{FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
         events::{AppEvent, EventSender},
         notification::{LogLevel, Notification},
     },
@@ -234,11 +232,6 @@ impl PortForwardsList {
             if event == ListEvent::Quit {
                 self.event_sender.send(AppEvent::Quit);
             }
-            return;
-        }
-
-        if handle_general_keys(key, &self.event_sender) {
-            self.list.state.select(None);
             return;
         }
 

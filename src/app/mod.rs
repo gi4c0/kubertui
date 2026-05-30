@@ -21,7 +21,7 @@ use crate::{
         common::HelpMenu,
         events::{AppEvent, EventHandler},
         header::Header,
-        main::MainWindow,
+        main::{MainWindow, pods::PodsKind},
         notification::NotificationWidget,
     },
     error::AppResult,
@@ -107,7 +107,7 @@ impl App {
     fn draw(&mut self, frame: &mut Frame) {
         let layouts = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(10), Constraint::Fill(1)])
+            .constraints(vec![Constraint::Length(3), Constraint::Fill(1)])
             .split(frame.area());
 
         self.header.draw(layouts[0], frame);
@@ -139,7 +139,7 @@ impl App {
                 // TODO: Implement recency
                 // self.side_bar.root_space.add_to_recent(namespace.clone());
                 self.main_window.show_pods(namespace, pods);
-                self.active_window = MainWindowKind::Pods;
+                self.set_active(MainWindowKind::Pods);
             }
 
             AppEvent::LoadNamespaces(namespaces) => {
@@ -147,7 +147,10 @@ impl App {
                 self.update_active_window(MainWindowKind::Namespaces);
             }
 
-            AppEvent::ShowLogs(logs) => self.main_window.show_logs(logs),
+            AppEvent::ShowLogs(logs) => {
+                self.main_window.show_logs(logs);
+                self.header.set_pods_kind(PodsKind::Logs);
+            }
 
             AppEvent::PortForward {
                 pod_name,
@@ -198,6 +201,11 @@ impl App {
         self.active_window = cache.active_window;
         self.main_window = MainWindow::from_cache(cache.main_window, self.event_handler.sender());
         self.header = cache.header;
+    }
+
+    fn set_active(&mut self, kind: MainWindowKind) {
+        self.active_window = kind;
+        self.header.set_active(kind);
     }
 
     pub fn update_active_window(&mut self, new_active_window: MainWindowKind) {

@@ -1,9 +1,7 @@
 use crate::{
     app::{
         cache::{NamespaceItemCache, NamespacesListCache},
-        common::{
-            FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner, handle_general_keys,
-        },
+        common::{FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
         events::{AppEvent, EventSender},
         notification::Notification,
     },
@@ -97,7 +95,7 @@ impl NamespacesList {
             return true;
         };
 
-        handle_general_keys(key, &self.event_sender)
+        false
     }
 
     pub async fn load_pods(&mut self, namespace_item: NamespaceItem) {

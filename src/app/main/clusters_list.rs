@@ -8,10 +8,7 @@ use ratatui::{
 use crate::{
     app::{
         cache::{ClusterCache, ClustersListCache},
-        common::{
-            FOCUS_COLOR, FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner,
-            handle_general_keys,
-        },
+        common::{FOCUS_COLOR, FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
         events::{AppEvent, EventSender},
         notification::Notification,
     },
@@ -64,7 +61,7 @@ impl ClustersList {
         Ok(())
     }
 
-    pub fn draw<'a>(&'a mut self, area: Rect, frame: &mut Frame) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         self.list.draw_with_title(area, frame, "Clusters");
     }
 
@@ -125,16 +122,17 @@ impl ClustersList {
                         .send(AppEvent::ShowNotification(Notification::error(err)));
                 }
 
-                return true;
+                true
             }
+
             KeyCode::Char('?') => {
                 self.event_sender
                     .send(AppEvent::ShowHelp(HelpMenuEnum::Clusters));
-            }
-            _ => {}
-        }
 
-        handle_general_keys(key, &self.event_sender)
+                true
+            }
+            _ => false,
+        }
     }
 }
 
