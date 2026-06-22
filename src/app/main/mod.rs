@@ -109,7 +109,9 @@ impl MainWindow {
             }
 
             MainWindowKind::Pods => {
-                self.pods.handle_key_event(key).await;
+                if self.pods.handle_key_event(key).await {
+                    return;
+                }
             }
         }
 

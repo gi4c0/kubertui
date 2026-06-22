@@ -15,6 +15,7 @@ use crate::{
         common::{FOCUS_COLOR, HelpMenuEnum, build_block, scroll},
         events::{AppEvent, EventSender},
         main::pods::logs::log_item::LogItem,
+        notification::Notification,
     },
     error::AppResult,
     kubectl,
@@ -33,16 +34,41 @@ pub struct PodLogs {
     edit_filters_mod: bool,
     active_filter_index: usize,
     selected_log: Option<LogItem>,
+    namespace: String,
+}
+
+pub enum LogsKeyEventResponse {
+    KeyHandled(bool),
+    CloseLogs,
 }
 
 // TODO: reload logs (fetch new)
 impl PodLogs {
-    pub async fn load(
+    pub async fn initial_load(
         namespace: String,
         pod_name: String,
         event_sender: EventSender,
     ) -> AppResult<Self> {
-        let mut logs = kubectl::load_logs(namespace.as_str(), pod_name.as_str()).await?;
+        let logs = Self::load_logs(&namespace, &pod_name).await?;
+
+        Ok(Self {
+            selected_log: None,
+            event_sender,
+            active_filter_index: 0,
+            filters: Vec::new(),
+            scrollbar_state: ScrollbarState::new(logs.len()),
+            add_new_filter_mod: false,
+            edit_filters_mod: false,
+            filtered_list: logs.iter().enumerate().map(|(index, _)| index).collect(),
+            pod_name,
+            namespace,
+            logs,
+            state: ListState::default(),
+        })
+    }
+
+    async fn load_logs(namespace: &str, pod_name: &str) -> AppResult<Vec<String>> {
+        let mut logs = kubectl::load_logs(namespace, pod_name).await?;
         logs.reverse();
 
         let prettified_logs: Vec<String> = logs
@@ -59,23 +85,23 @@ impl PodLogs {
             })
             .collect();
 
-        Ok(Self {
-            selected_log: None,
-            event_sender,
-            active_filter_index: 0,
-            filters: Vec::new(),
-            scrollbar_state: ScrollbarState::new(prettified_logs.len()),
-            add_new_filter_mod: false,
-            edit_filters_mod: false,
-            filtered_list: prettified_logs
-                .iter()
-                .enumerate()
-                .map(|(index, _)| index)
-                .collect(),
-            pod_name,
-            logs: prettified_logs,
-            state: ListState::default(),
-        })
+        Ok(prettified_logs)
+    }
+
+    async fn reload(&mut self) -> AppResult<()> {
+        let logs = Self::load_logs(&self.namespace, &self.pod_name).await?;
+        let scroll_position = self.scrollbar_state.get_position();
+
+        self.scrollbar_state = ScrollbarState::new(logs.len()).position(scroll_position);
+        self.filtered_list = logs.iter().enumerate().map(|(index, _)| index).collect();
+        self.logs = logs;
+        self.filters = Vec::new();
+        self.add_new_filter_mod = false;
+        self.edit_filters_mod = false;
+        self.active_filter_index = 0;
+        self.selected_log = None;
+
+        Ok(())
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
@@ -139,14 +165,14 @@ impl PodLogs {
         scroll::render_scrollbar(area, frame, &mut self.scrollbar_state);
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) -> LogsKeyEventResponse {
         if let Some(selected_log) = &mut self.selected_log {
             let should_close = selected_log.handle_key_event(key);
 
             if should_close {
                 self.selected_log = None;
             }
-            return false;
+            return LogsKeyEventResponse::KeyHandled(false);
         }
 
         if self.edit_filters_mod {
@@ -189,7 +215,7 @@ impl PodLogs {
                 _ => {}
             };
 
-            return false;
+            return LogsKeyEventResponse::KeyHandled(false);
         }
 
         if self.add_new_filter_mod {
@@ -228,11 +254,11 @@ impl PodLogs {
                 _ => {}
             };
 
-            return false;
+            return LogsKeyEventResponse::KeyHandled(false);
         }
 
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => return true,
+            KeyCode::Char('q') | KeyCode::Esc => return LogsKeyEventResponse::CloseLogs,
 
             KeyCode::Char('/') => {
                 self.filters.push(String::new());
@@ -241,7 +267,7 @@ impl PodLogs {
 
             KeyCode::Char('f') => {
                 if self.filters.is_empty() {
-                    return false;
+                    return LogsKeyEventResponse::KeyHandled(false);
                 }
 
                 self.edit_filters_mod = true;
@@ -252,6 +278,13 @@ impl PodLogs {
                 &mut self.state,
                 &mut self.scrollbar_state,
             ),
+
+            KeyCode::Char('r') => {
+                if let Err(err) = self.reload().await {
+                    self.event_sender
+                        .send(AppEvent::ShowNotification(Notification::error(err)));
+                }
+            }
 
             KeyCode::Char('k') | KeyCode::Up => scroll::select_prev(
                 &self.filtered_list,
@@ -289,10 +322,10 @@ impl PodLogs {
                     ));
                 }
             }
-            _ => return false,
+            _ => return LogsKeyEventResponse::KeyHandled(false),
         };
 
-        false
+        LogsKeyEventResponse::KeyHandled(false)
     }
 
     fn update_filtered_list(&mut self) {

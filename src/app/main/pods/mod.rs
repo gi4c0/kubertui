@@ -8,7 +8,10 @@ use crate::{
         cache::PodsCache,
         common::handle_general_keys,
         events::EventSender,
-        main::pods::{logs::PodLogs, pods_list::PodsList},
+        main::pods::{
+            logs::{LogsKeyEventResponse, PodLogs},
+            pods_list::PodsList,
+        },
     },
     kubectl::pods::Pod,
 };
@@ -81,22 +84,31 @@ impl Pods {
         }
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         match self.kind {
             PodsKind::List => {
                 if let Some(pods_list) = self.pods_list.as_mut() {
-                    pods_list.handle_key_event(key).await;
+                    return pods_list.handle_key_event(key).await;
                 }
             }
 
             PodsKind::Logs => {
                 if let Some(pod_logs) = self.pod_logs.as_mut() {
-                    pod_logs.handle_key_event(key);
+                    match pod_logs.handle_key_event(key).await {
+                        LogsKeyEventResponse::CloseLogs => {
+                            self.kind = PodsKind::List;
+                            return true;
+                        }
+
+                        LogsKeyEventResponse::KeyHandled(result) => return result,
+                    };
                 }
             }
 
             PodsKind::Info => todo!(),
         };
+
+        false
     }
 }
 

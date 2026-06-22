@@ -76,7 +76,6 @@ impl NamespacesList {
         });
     }
 
-    // TODO: delete return type if not needed
     pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(list_event) = self.namespace_list.handle_key(key) {
             match list_event {

@@ -202,7 +202,7 @@ impl PodsList {
         }
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) {
+    pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(delete_pod_alert) = &self.delete_pod_alert {
             match delete_pod_alert.handle_key_event(key) {
                 Some(DeletePodAction::DeletePod) => {
@@ -215,12 +215,12 @@ impl PodsList {
                 None => {}
             };
 
-            return;
+            return true;
         }
 
         if let Some(port_forward_popup) = &mut self.port_forward_popup {
             if let Some(port_forward_popup_action) = port_forward_popup.handle_key_event(key) {
-                return match port_forward_popup_action {
+                match port_forward_popup_action {
                     PortForwardPopupAction::PortForward {
                         local_port,
                         app_port,
@@ -244,11 +244,11 @@ impl PodsList {
                 };
             }
 
-            return;
+            return true;
         }
 
         if self.is_filter_mod {
-            return match key.code {
+            match key.code {
                 KeyCode::Enter => {
                     self.is_filter_mod = false;
                     self.state.select(Some(0));
@@ -269,6 +269,8 @@ impl PodsList {
                 }
                 _ => {}
             };
+
+            return true;
         }
 
         match key.code {
@@ -319,8 +321,10 @@ impl PodsList {
                     spinner,
                 );
             }
-            _ => {}
+            _ => return false,
         };
+
+        true
     }
 
     fn get_selected_pod_name(&self) -> Option<&str> {
@@ -358,7 +362,7 @@ impl PodsList {
         mut spinner: Spinner,
     ) {
         tokio::spawn(async move {
-            let logs = match PodLogs::load(namespace, pod_name, event_sender.clone()).await {
+            let logs = match PodLogs::initial_load(namespace, pod_name, event_sender.clone()).await {
                 Ok(logs) => logs,
                 Err(err) => {
                     spinner.stop();
