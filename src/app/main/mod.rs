@@ -54,7 +54,7 @@ impl MainWindow {
         self.namespaces.set_namespaces(namespaces);
     }
 
-    pub async fn add_to_list_and_port_forward(
+    pub fn add_to_list_and_port_forward(
         &mut self,
         namespace: String,
         pod_name: String,
@@ -62,8 +62,19 @@ impl MainWindow {
         app_port: u16,
     ) {
         self.port_forwards
-            .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
-            .await;
+            .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port);
+    }
+
+    pub fn set_clusters(&mut self, clusters: Vec<String>) {
+        self.clusters.set_clusters(clusters);
+    }
+
+    pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
+        self.pods.pods_updated(namespace, pods);
+    }
+
+    pub fn logs_reloaded(&mut self, pod_name: &str, logs: Vec<String>) {
+        self.pods.logs_reloaded(pod_name, logs);
     }
 
     pub fn show_logs(&mut self, logs: PodLogs) {
@@ -90,26 +101,26 @@ impl MainWindow {
         }
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) {
+    pub fn handle_key_event(&mut self, key: KeyEvent) {
         match self.kind {
             MainWindowKind::Namespaces => {
-                if self.namespaces.handle_key_event(key).await {
+                if self.namespaces.handle_key_event(key) {
                     return;
                 }
             }
 
             MainWindowKind::Clusters => {
-                if self.clusters.handle_key_event(key).await {
+                if self.clusters.handle_key_event(key) {
                     return;
                 };
             }
 
             MainWindowKind::PortForward => {
-                self.port_forwards.handle_key_event(key).await;
+                self.port_forwards.handle_key_event(key);
             }
 
             MainWindowKind::Pods => {
-                if self.pods.handle_key_event(key).await {
+                if self.pods.handle_key_event(key) {
                     return;
                 }
             }

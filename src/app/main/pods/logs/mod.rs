@@ -42,7 +42,6 @@ pub enum LogsKeyEventResponse {
     CloseLogs,
 }
 
-// TODO: reload logs (fetch new)
 impl PodLogs {
     pub async fn initial_load(
         namespace: String,
@@ -88,8 +87,24 @@ impl PodLogs {
         Ok(prettified_logs)
     }
 
-    async fn reload(&mut self) -> AppResult<()> {
-        let logs = Self::load_logs(&self.namespace, &self.pod_name).await?;
+    fn reload(&self) {
+        let namespace = self.namespace.clone();
+        let pod_name = self.pod_name.clone();
+        let event_sender = self.event_sender.clone();
+
+        tokio::spawn(async move {
+            match Self::load_logs(&namespace, &pod_name).await {
+                Ok(logs) => event_sender.send(AppEvent::LogsReloaded { pod_name, logs }),
+                Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::error(err))),
+            }
+        });
+    }
+
+    pub fn logs_reloaded(&mut self, pod_name: &str, logs: Vec<String>) {
+        if self.pod_name != pod_name {
+            return;
+        }
+
         let scroll_position = self.scrollbar_state.get_position();
 
         self.scrollbar_state = ScrollbarState::new(logs.len()).position(scroll_position);
@@ -100,8 +115,6 @@ impl PodLogs {
         self.edit_filters_mod = false;
         self.active_filter_index = 0;
         self.selected_log = None;
-
-        Ok(())
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
@@ -165,7 +178,7 @@ impl PodLogs {
         scroll::render_scrollbar(area, frame, &mut self.scrollbar_state);
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) -> LogsKeyEventResponse {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> LogsKeyEventResponse {
         if let Some(selected_log) = &mut self.selected_log {
             let should_close = selected_log.handle_key_event(key);
 
@@ -212,10 +225,10 @@ impl PodLogs {
                 }
 
                 KeyCode::Esc | KeyCode::Enter => self.edit_filters_mod = false,
-                _ => {}
+                _ => return LogsKeyEventResponse::KeyHandled(false),
             };
 
-            return LogsKeyEventResponse::KeyHandled(false);
+            return LogsKeyEventResponse::KeyHandled(true);
         }
 
         if self.add_new_filter_mod {
@@ -251,10 +264,10 @@ impl PodLogs {
                     self.add_new_filter_mod = false;
                     self.update_filtered_list();
                 }
-                _ => {}
+                _ => return LogsKeyEventResponse::KeyHandled(false),
             };
 
-            return LogsKeyEventResponse::KeyHandled(false);
+            return LogsKeyEventResponse::KeyHandled(true);
         }
 
         match key.code {
@@ -279,12 +292,7 @@ impl PodLogs {
                 &mut self.scrollbar_state,
             ),
 
-            KeyCode::Char('r') => {
-                if let Err(err) = self.reload().await {
-                    self.event_sender
-                        .send(AppEvent::ShowNotification(Notification::error(err)));
-                }
-            }
+            KeyCode::Char('r') => self.reload(),
 
             KeyCode::Char('k') | KeyCode::Up => scroll::select_prev(
                 &self.filtered_list,
@@ -325,7 +333,7 @@ impl PodLogs {
             _ => return LogsKeyEventResponse::KeyHandled(false),
         };
 
-        LogsKeyEventResponse::KeyHandled(false)
+        LogsKeyEventResponse::KeyHandled(true)
     }
 
     fn update_filtered_list(&mut self) {

@@ -1,4 +1,8 @@
-use std::{process::Command, sync::Arc, time::Duration};
+use std::{
+    process::Command,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use ratatui::{
     Frame,
@@ -7,7 +11,7 @@ use ratatui::{
     style::{Color, Style},
     widgets::ListState,
 };
-use tokio::{sync::Mutex, time::sleep};
+use tokio::time::sleep;
 
 use crate::{
     app::{
@@ -183,7 +187,7 @@ impl PortForwardsList {
         self.list.append_to_list(new_item);
     }
 
-    pub async fn add_to_list_and_port_forward(
+    pub fn add_to_list_and_port_forward(
         &mut self,
         namespace: String,
         pod_name: String,
@@ -195,7 +199,7 @@ impl PortForwardsList {
             .inner_list
             .iter()
             .find(|item| item.pod_name == pod_name)
-            && existing.pid.lock().await.is_some()
+            && existing.pid.lock().unwrap().is_some()
         {
             return;
         }
@@ -226,7 +230,7 @@ impl PortForwardsList {
         self.list.draw(area, frame);
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) {
+    pub fn handle_key_event(&mut self, key: KeyEvent) {
         // Handle inner_list keys
         if let Some(event) = self.list.handle_key(key) {
             if event == ListEvent::Quit {
@@ -237,9 +241,9 @@ impl PortForwardsList {
 
         match key.code {
             KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => {
-                self.toggle_port_forward().await;
+                self.toggle_port_forward();
             }
-            KeyCode::Char('d') | KeyCode::Backspace => self.delete_item().await,
+            KeyCode::Char('d') | KeyCode::Backspace => self.delete_item(),
             KeyCode::Char('?') => self
                 .event_sender
                 .send(AppEvent::ShowHelp(HelpMenuEnum::RecentPortForwards)),
@@ -247,10 +251,10 @@ impl PortForwardsList {
         };
     }
 
-    async fn toggle_port_forward(&mut self) {
+    fn toggle_port_forward(&mut self) {
         if let Some(selected) = self.list.state.selected() {
             {
-                let mut maybe_pid = self.list.inner_list[selected].pid.lock().await;
+                let mut maybe_pid = self.list.inner_list[selected].pid.lock().unwrap();
 
                 if let Some(pid) = *maybe_pid {
                     self.stop_port_forward(pid);
@@ -270,11 +274,11 @@ impl PortForwardsList {
         }
     }
 
-    async fn delete_item(&mut self) {
+    fn delete_item(&mut self) {
         if let Some(selected) = self.list.state.selected() {
             let pod = &self.list.inner_list[selected];
 
-            if let Some(pid) = *pod.pid.lock().await {
+            if let Some(pid) = *pod.pid.lock().unwrap() {
                 self.stop_port_forward(pid);
             }
 
@@ -319,7 +323,7 @@ impl PortForwardsList {
         }
 
         {
-            let mut pod_pid = pod.pid.lock().await;
+            let mut pod_pid = pod.pid.lock().unwrap();
             *pod_pid = Some(pid);
         }
 
@@ -330,7 +334,7 @@ impl PortForwardsList {
         tokio::spawn(async move {
             loop {
                 {
-                    let mut pid_guard = pid.lock().await;
+                    let mut pid_guard = pid.lock().unwrap();
 
                     let pid = match *pid_guard {
                         Some(pid) => pid,

@@ -127,7 +127,7 @@ impl App {
             AppEvent::Tick => {}
             AppEvent::Crossterm(crossterm_event) => match crossterm_event {
                 Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                    self.handle_key_event(key_event).await
+                    self.handle_key_event(key_event)
                 }
                 _ => {}
             },
@@ -159,8 +159,19 @@ impl App {
                 namespace,
             } => {
                 self.main_window
-                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port)
-                    .await;
+                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port);
+            }
+
+            AppEvent::ClustersLoaded(clusters) => {
+                self.main_window.set_clusters(clusters);
+            }
+
+            AppEvent::PodsUpdated { namespace, pods } => {
+                self.main_window.pods_updated(&namespace, pods);
+            }
+
+            AppEvent::LogsReloaded { pod_name, logs } => {
+                self.main_window.logs_reloaded(&pod_name, logs);
             }
 
             AppEvent::ShowNotification(notification) => {
@@ -183,7 +194,7 @@ impl App {
         Ok(())
     }
 
-    async fn handle_key_event(&mut self, key: KeyEvent) {
+    fn handle_key_event(&mut self, key: KeyEvent) {
         if let Some(notification) = &mut self.notification {
             notification.handle_key_event(key);
             return;
@@ -194,7 +205,7 @@ impl App {
             return;
         }
 
-        self.main_window.handle_key_event(key).await;
+        self.main_window.handle_key_event(key);
     }
 
     fn merge_cache(&mut self, cache: AppCache) {

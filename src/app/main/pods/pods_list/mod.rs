@@ -22,7 +22,6 @@ use crate::{
         },
         notification::Notification,
     },
-    error::AppResult,
     kubectl::{
         self,
         pods::{KnownPodStatus, Pod, PodStatus, get_pods_list},
@@ -202,13 +201,18 @@ impl PodsList {
         }
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(delete_pod_alert) = &self.delete_pod_alert {
             match delete_pod_alert.handle_key_event(key) {
                 Some(DeletePodAction::DeletePod) => {
-                    if let Err(err) = self.delete_pod().await {
-                        self.event_sender
-                            .send(AppEvent::ShowNotification(Notification::error(err)));
+                    self.delete_pod_alert = None;
+
+                    if let Some(pod_name) = self.get_selected_pod_name() {
+                        Self::delete_pod(
+                            self.namespace.clone(),
+                            pod_name.to_owned(),
+                            self.event_sender.clone(),
+                        );
                     }
                 }
                 Some(DeletePodAction::Cancel) => self.delete_pod_alert = None,
@@ -338,21 +342,28 @@ impl PodsList {
         Some(pod_name)
     }
 
-    async fn delete_pod(&mut self) -> AppResult<()> {
-        if let Some(pod_name) = self.get_selected_pod_name()
-            && let Err(err) = kubectl::delete_pod(&self.namespace, pod_name).await
-        {
-            self.event_sender
-                .send(AppEvent::ShowNotification(Notification::error(err)));
-        }
+    fn delete_pod(namespace: String, pod_name: String, event_sender: EventSender) {
+        tokio::spawn(async move {
+            if let Err(err) = kubectl::delete_pod(&namespace, &pod_name).await {
+                event_sender.send(AppEvent::ShowNotification(Notification::error(err)));
+            }
 
-        self.delete_pod_alert = None;
-        let pods = get_pods_list(self.namespace.as_str()).await?;
+            match get_pods_list(namespace.as_str()).await {
+                Ok(pods) => event_sender.send(AppEvent::PodsUpdated { namespace, pods }),
+                Err(err) => {
+                    event_sender.send(AppEvent::ShowNotification(Notification::error(err)))
+                }
+            }
+        });
+    }
+
+    pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
+        if self.namespace != namespace {
+            return;
+        }
 
         self.update_pods(pods);
         self.update_filtered_list();
-
-        Ok(())
     }
 
     fn load_logs(

@@ -6,7 +6,6 @@ use strum::{AsRefStr, VariantArray};
 use crate::{
     app::{
         cache::PodsCache,
-        common::handle_general_keys,
         events::EventSender,
         main::pods::{
             logs::{LogsKeyEventResponse, PodLogs},
@@ -84,17 +83,29 @@ impl Pods {
         }
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
+        if let Some(pods_list) = self.pods_list.as_mut() {
+            pods_list.pods_updated(namespace, pods);
+        }
+    }
+
+    pub fn logs_reloaded(&mut self, pod_name: &str, logs: Vec<String>) {
+        if let Some(pod_logs) = self.pod_logs.as_mut() {
+            pod_logs.logs_reloaded(pod_name, logs);
+        }
+    }
+
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         match self.kind {
             PodsKind::List => {
                 if let Some(pods_list) = self.pods_list.as_mut() {
-                    return pods_list.handle_key_event(key).await;
+                    return pods_list.handle_key_event(key);
                 }
             }
 
             PodsKind::Logs => {
                 if let Some(pod_logs) = self.pod_logs.as_mut() {
-                    match pod_logs.handle_key_event(key).await {
+                    match pod_logs.handle_key_event(key) {
                         LogsKeyEventResponse::CloseLogs => {
                             self.kind = PodsKind::List;
                             return true;

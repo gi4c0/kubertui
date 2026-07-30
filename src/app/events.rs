@@ -35,6 +35,15 @@ pub enum AppEvent {
         namespace: String,
     },
     ShowLogs(PodLogs),
+    ClustersLoaded(Vec<String>),
+    PodsUpdated {
+        namespace: String,
+        pods: Vec<Pod>,
+    },
+    LogsReloaded {
+        pod_name: String,
+        logs: Vec<String>,
+    },
     ShowNotification(Notification),
     HideNotification,
     ShowHelp(HelpMenuEnum),

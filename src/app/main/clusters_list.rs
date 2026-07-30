@@ -46,7 +46,12 @@ impl ClustersList {
 
     pub async fn load_clusters(&mut self) -> AppResult<()> {
         let clusters = kubectl::get_clusters().await?;
+        self.set_clusters(clusters);
 
+        Ok(())
+    }
+
+    pub fn set_clusters(&mut self, clusters: Vec<String>) {
         self.list.set_items(
             clusters
                 .into_iter()
@@ -57,15 +62,13 @@ impl ClustersList {
                 })
                 .collect(),
         );
-
-        Ok(())
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         self.list.draw_with_title(area, frame, "Clusters");
     }
 
-    async fn on_cluster_selected(&mut self, cluster: Cluster) {
+    fn on_cluster_selected(&mut self, cluster: Cluster) {
         let cluster_ref = self
             .list
             .inner_list
@@ -103,13 +106,13 @@ impl ClustersList {
         event_sender.send(AppEvent::LoadNamespaces(namespaces));
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(list_event) = self.list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
                     self.event_sender.send(AppEvent::Quit);
                 }
-                ListEvent::SelectedItem(cluster) => self.on_cluster_selected(cluster).await,
+                ListEvent::SelectedItem(cluster) => self.on_cluster_selected(cluster),
                 ListEvent::StayInList => {}
             };
             return true;
@@ -117,10 +120,15 @@ impl ClustersList {
 
         match key.code {
             KeyCode::Char('r') => {
-                if let Err(err) = self.load_clusters().await {
-                    self.event_sender
-                        .send(AppEvent::ShowNotification(Notification::error(err)));
-                }
+                let event_sender = self.event_sender.clone();
+
+                tokio::spawn(async move {
+                    match kubectl::get_clusters().await {
+                        Ok(clusters) => event_sender.send(AppEvent::ClustersLoaded(clusters)),
+                        Err(err) => event_sender
+                            .send(AppEvent::ShowNotification(Notification::error(err))),
+                    }
+                });
 
                 true
             }

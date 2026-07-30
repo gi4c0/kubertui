@@ -76,13 +76,13 @@ impl NamespacesList {
         });
     }
 
-    pub async fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
         if let Some(list_event) = self.namespace_list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
                     self.event_sender.send(AppEvent::Quit);
                 }
-                ListEvent::SelectedItem(item) => self.load_pods(item).await,
+                ListEvent::SelectedItem(item) => self.load_pods(item),
                 ListEvent::StayInList => {}
             };
             return true;
@@ -97,7 +97,7 @@ impl NamespacesList {
         false
     }
 
-    pub async fn load_pods(&mut self, namespace_item: NamespaceItem) {
+    pub fn load_pods(&mut self, namespace_item: NamespaceItem) {
         let namespace_from_list = self
             .namespace_list
             .inner_list
