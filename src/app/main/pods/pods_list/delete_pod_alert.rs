@@ -16,12 +16,20 @@ pub enum DeletePodAction {
 
 #[derive(Debug, Clone)]
 pub struct DeletePodAlert {
+    namespace: String,
     pod_name: String,
 }
 
 impl DeletePodAlert {
-    pub fn new(pod_name: String) -> Self {
-        Self { pod_name }
+    pub fn new(namespace: String, pod_name: String) -> Self {
+        Self {
+            namespace,
+            pod_name,
+        }
+    }
+
+    pub fn target(&self) -> (String, String) {
+        (self.namespace.clone(), self.pod_name.clone())
     }
 
     pub fn draw(&self, frame: &mut Frame) {

@@ -1,5 +1,5 @@
-mod delete_pod_alert;
-mod port_forward_popup;
+pub mod delete_pod_alert;
+pub mod port_forward_popup;
 
 use ratatui::{
     Frame,
@@ -12,14 +12,14 @@ use crate::{
     app::{
         cache::{PodsListCache, StateCache},
         common::{HelpMenuEnum, Spinner, build_block, get_highlight_style},
-        events::{AppEvent, EventSender},
+        events::{AppEvent, EventSender, KeyEventResult},
         main::pods::{
             logs::PodLogs,
             pods_list::{
-                delete_pod_alert::{DeletePodAction, DeletePodAlert},
-                port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
+                delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
             },
         },
+        modal::Modal,
         notification::Notification,
     },
     kubectl::{
@@ -58,8 +58,6 @@ pub struct PodsList {
     filter: String,
     is_filter_mod: bool,
     longest_name: u16,
-    port_forward_popup: Option<PortForwardPopup>,
-    delete_pod_alert: Option<DeletePodAlert>,
     title: String,
     namespace: String,
 }
@@ -77,7 +75,6 @@ impl From<PodsList> for PodsListCache {
             state: StateCache {
                 selected: value.state.selected(),
             },
-            port_forward_popup: value.port_forward_popup.map(Into::into),
         }
     }
 }
@@ -92,13 +89,11 @@ impl PodsList {
             event_sender,
             filtered_list: value.filtered_list,
             is_filter_mod: value.is_filter_mod,
-            delete_pod_alert: None,
             original_list: value.original_list.into_iter().map(Into::into).collect(),
             longest_name: value.longest_name,
             title: value.title,
             namespace: value.namespace,
             state,
-            port_forward_popup: value.port_forward_popup.map(|i| i.into()),
         }
     }
 
@@ -112,12 +107,10 @@ impl PodsList {
             title: format!("[{namespace}] Select pod"),
             longest_name: 0,
             original_list: Vec::new(),
-            delete_pod_alert: None,
             event_sender,
             state,
             filter: String::new(),
             is_filter_mod: false,
-            port_forward_popup: None,
         };
 
         list.update_pods(pods);
@@ -192,65 +185,9 @@ impl PodsList {
             frame.render_stateful_widget(table, area, &mut self.state);
         }
 
-        if let Some(port_forward_popup) = &mut self.port_forward_popup {
-            port_forward_popup.draw(frame);
-        }
-
-        if let Some(delete_pod_alert) = &self.delete_pod_alert {
-            delete_pod_alert.draw(frame);
-        }
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
-        if let Some(delete_pod_alert) = &self.delete_pod_alert {
-            match delete_pod_alert.handle_key_event(key) {
-                Some(DeletePodAction::DeletePod) => {
-                    self.delete_pod_alert = None;
-
-                    if let Some(pod_name) = self.get_selected_pod_name() {
-                        Self::delete_pod(
-                            self.namespace.clone(),
-                            pod_name.to_owned(),
-                            self.event_sender.clone(),
-                        );
-                    }
-                }
-                Some(DeletePodAction::Cancel) => self.delete_pod_alert = None,
-                None => {}
-            };
-
-            return true;
-        }
-
-        if let Some(port_forward_popup) = &mut self.port_forward_popup {
-            if let Some(port_forward_popup_action) = port_forward_popup.handle_key_event(key) {
-                match port_forward_popup_action {
-                    PortForwardPopupAction::PortForward {
-                        local_port,
-                        app_port,
-                    } => {
-                        let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                        let item = self.original_list[index].clone();
-
-                        self.event_sender.send(AppEvent::PortForward {
-                            pod_name: item.pod.name,
-                            local_port,
-                            app_port,
-                            namespace: self.namespace.clone(),
-                        });
-
-                        self.port_forward_popup = None;
-                    }
-
-                    PortForwardPopupAction::Quit => {
-                        self.port_forward_popup = None;
-                    }
-                };
-            }
-
-            return true;
-        }
-
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         if self.is_filter_mod {
             match key.code {
                 KeyCode::Enter => {
@@ -274,7 +211,7 @@ impl PodsList {
                 _ => {}
             };
 
-            return true;
+            return KeyEventResult::Consumed;
         }
 
         match key.code {
@@ -285,7 +222,11 @@ impl PodsList {
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('d') => {
                 if let Some(pod_name) = self.get_selected_pod_name() {
-                    self.delete_pod_alert = Some(DeletePodAlert::new(pod_name.to_owned()));
+                    self.event_sender
+                        .send(AppEvent::OpenModal(Modal::DeletePod(DeletePodAlert::new(
+                            self.namespace.clone(),
+                            pod_name.to_owned(),
+                        ))));
                 }
             }
             KeyCode::Char('G') => {
@@ -301,13 +242,21 @@ impl PodsList {
             KeyCode::Char('/') => self.is_filter_mod = true,
             KeyCode::Char('p') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                let pod_containers = self.original_list[index].pod.containers.clone();
-                self.port_forward_popup = Some(PortForwardPopup::new(pod_containers));
+                let pod = &self.original_list[index].pod;
+
+                self.event_sender
+                    .send(AppEvent::OpenModal(Modal::PortForward(
+                        PortForwardPopup::new(
+                            self.namespace.clone(),
+                            pod.name.clone(),
+                            pod.containers.clone(),
+                        ),
+                    )));
             }
 
             KeyCode::Char('?') => self
                 .event_sender
-                .send(AppEvent::ShowHelp(HelpMenuEnum::Pods)),
+                .send(AppEvent::OpenModal(Modal::help(HelpMenuEnum::Pods))),
 
             KeyCode::Char('L') => {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
@@ -325,10 +274,10 @@ impl PodsList {
                     spinner,
                 );
             }
-            _ => return false,
+            _ => return KeyEventResult::Ignored,
         };
 
-        true
+        KeyEventResult::Consumed
     }
 
     fn get_selected_pod_name(&self) -> Option<&str> {
@@ -340,21 +289,6 @@ impl PodsList {
             .as_str();
 
         Some(pod_name)
-    }
-
-    fn delete_pod(namespace: String, pod_name: String, event_sender: EventSender) {
-        tokio::spawn(async move {
-            if let Err(err) = kubectl::delete_pod(&namespace, &pod_name).await {
-                event_sender.send(AppEvent::ShowNotification(Notification::error(err)));
-            }
-
-            match get_pods_list(namespace.as_str()).await {
-                Ok(pods) => event_sender.send(AppEvent::PodsUpdated { namespace, pods }),
-                Err(err) => {
-                    event_sender.send(AppEvent::ShowNotification(Notification::error(err)))
-                }
-            }
-        });
     }
 
     pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
@@ -437,6 +371,19 @@ impl PodsList {
 
         self.state.select(Some(i));
     }
+}
+
+pub fn delete_pod(namespace: String, pod_name: String, event_sender: EventSender) {
+    tokio::spawn(async move {
+        if let Err(err) = kubectl::delete_pod(&namespace, &pod_name).await {
+            event_sender.send(AppEvent::ShowNotification(Notification::error(err)));
+        }
+
+        match get_pods_list(namespace.as_str()).await {
+            Ok(pods) => event_sender.send(AppEvent::PodsUpdated { namespace, pods }),
+            Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::error(err))),
+        }
+    });
 }
 
 fn get_status<'a>(statuses: &'a [PodStatus], reason: &'a Option<String>) -> Cell<'a> {

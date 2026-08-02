@@ -8,13 +8,22 @@ use tokio::sync::mpsc;
 
 use crate::{
     app::{
-        MainWindowKind, common::HelpMenuEnum, main::pods::logs::PodLogs, notification::Notification,
+        MainWindowKind, main::pods::logs::PodLogs, modal::Modal, notification::Notification,
     },
     error::{AppError, AppResult},
     kubectl::pods::Pod,
 };
 
 const TICK_FPS: f64 = 30.0;
+
+/// Uniform result of a component's `handle_key_event`: either the key was
+/// consumed, or the parent may fall through to more general handling.
+/// Anything else a component wants to say goes through an `AppEvent`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyEventResult {
+    Consumed,
+    Ignored,
+}
 
 pub enum AppEvent {
     Crossterm(CrosstermEvent),
@@ -28,13 +37,8 @@ pub enum AppEvent {
         pods: Vec<Pod>,
         namespace: String,
     },
-    PortForward {
-        pod_name: String,
-        local_port: u16,
-        app_port: u16,
-        namespace: String,
-    },
     ShowLogs(PodLogs),
+    CloseLogs,
     ClustersLoaded(Vec<String>),
     PodsUpdated {
         namespace: String,
@@ -45,8 +49,7 @@ pub enum AppEvent {
         logs: Vec<String>,
     },
     ShowNotification(Notification),
-    HideNotification,
-    ShowHelp(HelpMenuEnum),
+    OpenModal(Modal),
 }
 
 pub struct EventHandler {

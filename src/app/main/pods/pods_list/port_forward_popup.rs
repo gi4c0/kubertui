@@ -6,40 +6,20 @@ use ratatui::{
 };
 
 use crate::{
-    app::{
-        cache::PortForwardPopupCache,
-        common::{FilterableList, ListEvent, build_block, centered_rect},
-    },
+    app::common::{FilterableList, ListEvent, build_block, centered_rect},
     kubectl::pods::PodContainer,
 };
 
 #[derive(Debug, Clone)]
 pub struct PortForwardPopup {
+    namespace: String,
+    pod_name: String,
     port: String,
     pod_containers_list: FilterableList<PodContainer>,
     selected_container: Option<PodContainer>,
 }
 
-impl From<PortForwardPopup> for PortForwardPopupCache {
-    fn from(value: PortForwardPopup) -> Self {
-        Self {
-            port: value.port,
-            pod_containers: value.pod_containers_list.into(),
-            selected_container: value.selected_container,
-        }
-    }
-}
-
-impl From<PortForwardPopupCache> for PortForwardPopup {
-    fn from(value: PortForwardPopupCache) -> Self {
-        Self {
-            port: value.port,
-            pod_containers_list: value.pod_containers.into(),
-            selected_container: value.selected_container,
-        }
-    }
-}
-
+// Add somewhere a loader for port forwarding
 pub enum PortForwardPopupAction {
     PortForward { local_port: u16, app_port: u16 },
     Quit,
@@ -52,7 +32,7 @@ impl PortForwardPopup {
         self.pod_containers_list.inner_list.len()
     }
 
-    pub fn new(pod_containers: Vec<PodContainer>) -> Self {
+    pub fn new(namespace: String, pod_name: String, pod_containers: Vec<PodContainer>) -> Self {
         let mut selected_container = None;
         let mut port = String::new();
 
@@ -66,10 +46,16 @@ impl PortForwardPopup {
         list.set_items(pod_containers);
 
         Self {
+            namespace,
+            pod_name,
             port,
             pod_containers_list: list,
             selected_container,
         }
+    }
+
+    pub fn target(&self) -> (String, String) {
+        (self.namespace.clone(), self.pod_name.clone())
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {

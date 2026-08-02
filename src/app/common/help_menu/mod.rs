@@ -76,13 +76,14 @@ impl Default for HelpMenu {
 impl HelpMenu {
     const TITLE: &'static str = "Help Menu";
 
-    pub fn show(&mut self, kind: HelpMenuEnum) {
-        self.kind = Some(kind);
-        self.update_filtered_list();
-    }
+    pub fn new(kind: HelpMenuEnum) -> Self {
+        let mut menu = Self {
+            kind: Some(kind),
+            ..Self::default()
+        };
 
-    pub fn is_shown(&self) -> bool {
-        self.kind.is_some()
+        menu.update_filtered_list();
+        menu
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
@@ -133,11 +134,8 @@ impl HelpMenu {
         }
     }
 
+    /// Returns true when the help menu should be closed.
     pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
-        if self.kind.is_none() {
-            return false;
-        }
-
         if self.is_filter_mod {
             match key.code {
                 KeyCode::Enter => {
@@ -163,20 +161,18 @@ impl HelpMenu {
                 _ => {}
             };
 
-            return true;
+            return false;
         }
 
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                self.kind = None;
-            }
+            KeyCode::Char('q') | KeyCode::Esc => return true,
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('/') => self.is_filter_mod = true,
             _ => {}
         };
 
-        true
+        false
     }
 
     fn select_next(&mut self) {

@@ -1,4 +1,4 @@
-mod log_item;
+pub mod log_item;
 
 use ratatui::{
     Frame,
@@ -13,8 +13,9 @@ use serde_json::Value;
 use crate::{
     app::{
         common::{FOCUS_COLOR, HelpMenuEnum, build_block, scroll},
-        events::{AppEvent, EventSender},
+        events::{AppEvent, EventSender, KeyEventResult},
         main::pods::logs::log_item::LogItem,
+        modal::Modal,
         notification::Notification,
     },
     error::AppResult,
@@ -33,13 +34,7 @@ pub struct PodLogs {
     add_new_filter_mod: bool,
     edit_filters_mod: bool,
     active_filter_index: usize,
-    selected_log: Option<LogItem>,
     namespace: String,
-}
-
-pub enum LogsKeyEventResponse {
-    KeyHandled(bool),
-    CloseLogs,
 }
 
 impl PodLogs {
@@ -51,7 +46,6 @@ impl PodLogs {
         let logs = Self::load_logs(&namespace, &pod_name).await?;
 
         Ok(Self {
-            selected_log: None,
             event_sender,
             active_filter_index: 0,
             filters: Vec::new(),
@@ -114,14 +108,9 @@ impl PodLogs {
         self.add_new_filter_mod = false;
         self.edit_filters_mod = false;
         self.active_filter_index = 0;
-        self.selected_log = None;
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
-        if let Some(selected_log) = &mut self.selected_log {
-            return selected_log.draw(area, frame);
-        }
-
         let list_items: Vec<ListItem> = self
             .filtered_list
             .iter()
@@ -178,16 +167,7 @@ impl PodLogs {
         scroll::render_scrollbar(area, frame, &mut self.scrollbar_state);
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> LogsKeyEventResponse {
-        if let Some(selected_log) = &mut self.selected_log {
-            let should_close = selected_log.handle_key_event(key);
-
-            if should_close {
-                self.selected_log = None;
-            }
-            return LogsKeyEventResponse::KeyHandled(false);
-        }
-
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         if self.edit_filters_mod {
             match key.code {
                 // Select next filter
@@ -225,10 +205,10 @@ impl PodLogs {
                 }
 
                 KeyCode::Esc | KeyCode::Enter => self.edit_filters_mod = false,
-                _ => return LogsKeyEventResponse::KeyHandled(false),
+                _ => return KeyEventResult::Ignored,
             };
 
-            return LogsKeyEventResponse::KeyHandled(true);
+            return KeyEventResult::Consumed;
         }
 
         if self.add_new_filter_mod {
@@ -264,14 +244,16 @@ impl PodLogs {
                     self.add_new_filter_mod = false;
                     self.update_filtered_list();
                 }
-                _ => return LogsKeyEventResponse::KeyHandled(false),
+                _ => return KeyEventResult::Ignored,
             };
 
-            return LogsKeyEventResponse::KeyHandled(true);
+            return KeyEventResult::Consumed;
         }
 
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => return LogsKeyEventResponse::CloseLogs,
+            KeyCode::Char('q') | KeyCode::Esc => {
+                self.event_sender.send(AppEvent::CloseLogs);
+            }
 
             KeyCode::Char('/') => {
                 self.filters.push(String::new());
@@ -280,7 +262,7 @@ impl PodLogs {
 
             KeyCode::Char('f') => {
                 if self.filters.is_empty() {
-                    return LogsKeyEventResponse::KeyHandled(false);
+                    return KeyEventResult::Ignored;
                 }
 
                 self.edit_filters_mod = true;
@@ -316,24 +298,22 @@ impl PodLogs {
 
             KeyCode::Char('?') => self
                 .event_sender
-                .send(AppEvent::ShowHelp(HelpMenuEnum::Logs)),
+                .send(AppEvent::OpenModal(Modal::help(HelpMenuEnum::Logs))),
 
             KeyCode::Enter => {
                 if let Some(selected) = self.state.selected() {
                     let index = &self.filtered_list[selected];
                     let log = &self.logs[*index];
 
-                    self.selected_log = Some(LogItem::new(
-                        log.clone(),
-                        self.pod_name.clone(),
-                        self.event_sender.clone(),
-                    ));
+                    self.event_sender.send(AppEvent::OpenModal(Modal::LogDetail(
+                        LogItem::new(log.clone(), self.pod_name.clone()),
+                    )));
                 }
             }
-            _ => return LogsKeyEventResponse::KeyHandled(false),
+            _ => return KeyEventResult::Ignored,
         };
 
-        LogsKeyEventResponse::KeyHandled(true)
+        KeyEventResult::Consumed
     }
 
     fn update_filtered_list(&mut self) {

@@ -17,7 +17,8 @@ use crate::{
     app::{
         cache::{PortForwardCache, PortForwardsListCache},
         common::{FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
-        events::{AppEvent, EventSender},
+        events::{AppEvent, EventSender, KeyEventResult},
+        modal::Modal,
         notification::{LogLevel, Notification},
     },
     kubectl,
@@ -230,13 +231,13 @@ impl PortForwardsList {
         self.list.draw(area, frame);
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         // Handle inner_list keys
         if let Some(event) = self.list.handle_key(key) {
             if event == ListEvent::Quit {
                 self.event_sender.send(AppEvent::Quit);
             }
-            return;
+            return KeyEventResult::Consumed;
         }
 
         match key.code {
@@ -244,11 +245,13 @@ impl PortForwardsList {
                 self.toggle_port_forward();
             }
             KeyCode::Char('d') | KeyCode::Backspace => self.delete_item(),
-            KeyCode::Char('?') => self
-                .event_sender
-                .send(AppEvent::ShowHelp(HelpMenuEnum::RecentPortForwards)),
-            _ => {}
+            KeyCode::Char('?') => self.event_sender.send(AppEvent::OpenModal(Modal::help(
+                HelpMenuEnum::RecentPortForwards,
+            ))),
+            _ => return KeyEventResult::Ignored,
         };
+
+        KeyEventResult::Consumed
     }
 
     fn toggle_port_forward(&mut self) {

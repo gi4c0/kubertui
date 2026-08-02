@@ -2,7 +2,8 @@ use crate::{
     app::{
         cache::{NamespaceItemCache, NamespacesListCache},
         common::{FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
-        events::{AppEvent, EventSender},
+        events::{AppEvent, EventSender, KeyEventResult},
+        modal::Modal,
         notification::Notification,
     },
     kubectl::pods::get_pods_list,
@@ -76,7 +77,7 @@ impl NamespacesList {
         });
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         if let Some(list_event) = self.namespace_list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
@@ -85,16 +86,16 @@ impl NamespacesList {
                 ListEvent::SelectedItem(item) => self.load_pods(item),
                 ListEvent::StayInList => {}
             };
-            return true;
+            return KeyEventResult::Consumed;
         }
 
         if let KeyCode::Char('?') = key.code {
             self.event_sender
-                .send(AppEvent::ShowHelp(HelpMenuEnum::Namespaces));
-            return true;
+                .send(AppEvent::OpenModal(Modal::help(HelpMenuEnum::Namespaces)));
+            return KeyEventResult::Consumed;
         };
 
-        false
+        KeyEventResult::Ignored
     }
 
     pub fn load_pods(&mut self, namespace_item: NamespaceItem) {

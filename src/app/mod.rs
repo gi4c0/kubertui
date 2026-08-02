@@ -3,6 +3,7 @@ pub mod common;
 mod events;
 mod header;
 mod main;
+pub mod modal;
 mod notification;
 
 use std::env;
@@ -18,10 +19,13 @@ use strum_macros::{AsRefStr, VariantArray};
 use crate::{
     app::{
         cache::AppCache,
-        common::HelpMenu,
         events::{AppEvent, EventHandler},
         header::Header,
-        main::{MainWindow, pods::PodsKind},
+        main::{
+            MainWindow,
+            pods::{PodsKind, pods_list},
+        },
+        modal::{Modal, ModalAction, ModalOutcome},
         notification::NotificationWidget,
     },
     error::AppResult,
@@ -42,9 +46,7 @@ pub struct App {
     exit: bool,
     active_window: MainWindowKind,
     event_handler: EventHandler,
-    notification: Option<NotificationWidget>,
-    // TODO: refactor items to be executable
-    help_menu: HelpMenu,
+    modals: Vec<Modal>,
 }
 
 impl App {
@@ -113,12 +115,8 @@ impl App {
         self.header.draw(layouts[0], frame);
         self.main_window.draw(layouts[1], frame);
 
-        if let Some(notification) = &mut self.notification {
-            notification.draw(frame);
-        }
-
-        if self.help_menu.is_shown() {
-            self.help_menu.draw(frame);
+        for modal in &mut self.modals {
+            modal.draw(frame, layouts[1]);
         }
     }
 
@@ -152,14 +150,9 @@ impl App {
                 self.header.set_pods_kind(PodsKind::Logs);
             }
 
-            AppEvent::PortForward {
-                pod_name,
-                local_port,
-                app_port,
-                namespace,
-            } => {
-                self.main_window
-                    .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port);
+            AppEvent::CloseLogs => {
+                self.main_window.close_logs();
+                self.header.set_pods_kind(PodsKind::List);
             }
 
             AppEvent::ClustersLoaded(clusters) => {
@@ -174,38 +167,55 @@ impl App {
                 self.main_window.logs_reloaded(&pod_name, logs);
             }
 
-            AppEvent::ShowNotification(notification) => {
-                self.notification = Some(NotificationWidget::new(
-                    notification,
-                    self.event_handler.sender(),
-                ))
-            }
-            AppEvent::HideNotification => self.notification = None,
+            AppEvent::ShowNotification(notification) => self
+                .modals
+                .push(Modal::Notification(NotificationWidget::new(notification))),
+
+            AppEvent::OpenModal(modal) => self.modals.push(modal),
+
             AppEvent::Focus(active_window) => self.active_window = active_window,
 
             AppEvent::FocusNext => self.update_active_window(self.next_focus()),
             AppEvent::FocusPrev => self.update_active_window(self.prev_focus()),
-
-            AppEvent::ShowHelp(kind) => {
-                self.help_menu.show(kind);
-            }
         }
 
         Ok(())
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) {
-        if let Some(notification) = &mut self.notification {
-            notification.handle_key_event(key);
+        let Some(modal) = self.modals.last_mut() else {
+            self.main_window.handle_key_event(key);
             return;
-        }
+        };
 
-        if self.help_menu.is_shown() {
-            self.help_menu.handle_key_event(key);
-            return;
+        match modal.handle_key_event(key) {
+            ModalOutcome::Stay => {}
+            ModalOutcome::Close => {
+                self.modals.pop();
+            }
+            ModalOutcome::CloseWith(action) => {
+                self.modals.pop();
+                self.handle_modal_action(action);
+            }
         }
+    }
 
-        self.main_window.handle_key_event(key);
+    fn handle_modal_action(&mut self, action: ModalAction) {
+        match action {
+            ModalAction::DeletePod {
+                namespace,
+                pod_name,
+            } => pods_list::delete_pod(namespace, pod_name, self.event_handler.sender()),
+
+            ModalAction::PortForward {
+                namespace,
+                pod_name,
+                local_port,
+                app_port,
+            } => self
+                .main_window
+                .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port),
+        }
     }
 
     fn merge_cache(&mut self, cache: AppCache) {
@@ -232,10 +242,9 @@ impl Default for App {
 
         Self {
             active_window: MainWindowKind::Clusters,
-            help_menu: HelpMenu::default(),
             exit: false,
             main_window: MainWindow::new(event_handler.sender()),
-            notification: None,
+            modals: Vec::new(),
             event_handler,
             header: Header::new(),
         }

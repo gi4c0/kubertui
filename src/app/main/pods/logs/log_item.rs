@@ -6,23 +6,21 @@ use ratatui::{
 };
 use serde_json::Value;
 
-use crate::app::{common::build_block, events::EventSender};
+use crate::app::common::build_block;
 
 #[derive(Debug, Clone)]
 pub struct LogItem {
     text: String,
     pod_name: String,
     scroll: u16,
-    event_sender: EventSender,
 }
 
 impl LogItem {
-    pub fn new(log_item: String, pod_name: String, event_sender: EventSender) -> Self {
+    pub fn new(log_item: String, pod_name: String) -> Self {
         let text = Self::format_log(log_item);
 
         Self {
             text,
-            event_sender,
             pod_name,
             scroll: 0,
         }

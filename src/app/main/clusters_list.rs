@@ -9,7 +9,8 @@ use crate::{
     app::{
         cache::{ClusterCache, ClustersListCache},
         common::{FOCUS_COLOR, FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
-        events::{AppEvent, EventSender},
+        events::{AppEvent, EventSender, KeyEventResult},
+        modal::Modal,
         notification::Notification,
     },
     error::AppResult,
@@ -106,7 +107,7 @@ impl ClustersList {
         event_sender.send(AppEvent::LoadNamespaces(namespaces));
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         if let Some(list_event) = self.list.handle_key(key) {
             match list_event {
                 ListEvent::Quit => {
@@ -115,7 +116,7 @@ impl ClustersList {
                 ListEvent::SelectedItem(cluster) => self.on_cluster_selected(cluster),
                 ListEvent::StayInList => {}
             };
-            return true;
+            return KeyEventResult::Consumed;
         }
 
         match key.code {
@@ -129,18 +130,16 @@ impl ClustersList {
                             .send(AppEvent::ShowNotification(Notification::error(err))),
                     }
                 });
-
-                true
             }
 
             KeyCode::Char('?') => {
                 self.event_sender
-                    .send(AppEvent::ShowHelp(HelpMenuEnum::Clusters));
-
-                true
+                    .send(AppEvent::OpenModal(Modal::help(HelpMenuEnum::Clusters)));
             }
-            _ => false,
-        }
+            _ => return KeyEventResult::Ignored,
+        };
+
+        KeyEventResult::Consumed
     }
 }
 

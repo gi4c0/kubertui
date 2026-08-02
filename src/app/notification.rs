@@ -9,10 +9,7 @@ use ratatui::{
 };
 use strum::Display;
 
-use crate::app::{
-    common::{self, build_block},
-    events::{AppEvent, EventSender},
-};
+use crate::app::common::{self, build_block};
 
 #[derive(Debug, Display)]
 pub enum LogLevel {
@@ -56,17 +53,13 @@ impl Notification {
 
 pub struct NotificationWidget {
     notification: Notification,
-    event_sender: EventSender,
 }
 
 const NOTIFICATION_WIDTH: u16 = 80;
 
 impl NotificationWidget {
-    pub fn new(notification: Notification, event_sender: EventSender) -> Self {
-        Self {
-            notification,
-            event_sender,
-        }
+    pub fn new(notification: Notification) -> Self {
+        Self { notification }
     }
 
     pub fn draw(&mut self, frame: &mut Frame) {
@@ -109,12 +102,11 @@ impl NotificationWidget {
         }
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
-        match key.code {
-            KeyCode::Enter | KeyCode::Backspace | KeyCode::Esc | KeyCode::Char(' ') => {
-                self.event_sender.send(AppEvent::HideNotification);
-            }
-            _ => {}
-        }
+    /// Returns true when the notification should be dismissed.
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+        matches!(
+            key.code,
+            KeyCode::Enter | KeyCode::Backspace | KeyCode::Esc | KeyCode::Char(' ')
+        )
     }
 }

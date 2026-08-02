@@ -9,7 +9,7 @@ use crate::{
     app::{App, MainWindowKind, header::Header, main::pods::PodsKind},
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},
-    kubectl::pods::{Pod, PodContainer},
+    kubectl::pods::Pod,
 };
 
 pub async fn save_cache(app: &App) -> AppResult<()> {
@@ -110,16 +110,8 @@ pub struct PodsListCache {
     pub filter: String,
     pub is_filter_mod: bool,
     pub longest_name: u16,
-    pub port_forward_popup: Option<PortForwardPopupCache>,
     pub namespace: String,
     pub title: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PortForwardPopupCache {
-    pub port: String,
-    pub pod_containers: FilterableListCache<PodContainer>,
-    pub selected_container: Option<PodContainer>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

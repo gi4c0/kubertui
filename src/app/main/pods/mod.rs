@@ -6,11 +6,8 @@ use strum::{AsRefStr, VariantArray};
 use crate::{
     app::{
         cache::PodsCache,
-        events::EventSender,
-        main::pods::{
-            logs::{LogsKeyEventResponse, PodLogs},
-            pods_list::PodsList,
-        },
+        events::{EventSender, KeyEventResult},
+        main::pods::{logs::PodLogs, pods_list::PodsList},
     },
     kubectl::pods::Pod,
 };
@@ -95,7 +92,7 @@ impl Pods {
         }
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         match self.kind {
             PodsKind::List => {
                 if let Some(pods_list) = self.pods_list.as_mut() {
@@ -105,21 +102,18 @@ impl Pods {
 
             PodsKind::Logs => {
                 if let Some(pod_logs) = self.pod_logs.as_mut() {
-                    match pod_logs.handle_key_event(key) {
-                        LogsKeyEventResponse::CloseLogs => {
-                            self.kind = PodsKind::List;
-                            return true;
-                        }
-
-                        LogsKeyEventResponse::KeyHandled(result) => return result,
-                    };
+                    return pod_logs.handle_key_event(key);
                 }
             }
 
             PodsKind::Info => todo!(),
         };
 
-        false
+        KeyEventResult::Ignored
+    }
+
+    pub fn close_logs(&mut self) {
+        self.kind = PodsKind::List;
     }
 }
 

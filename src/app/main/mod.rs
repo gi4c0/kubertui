@@ -7,7 +7,11 @@ use crate::error::AppResult;
 use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 
 use crate::{
-    app::{cache::MainWindowCache, events::EventSender, main::clusters_list::ClustersList},
+    app::{
+        cache::MainWindowCache,
+        events::{EventSender, KeyEventResult},
+        main::clusters_list::ClustersList,
+    },
     kubectl::pods::Pod,
 };
 
@@ -77,6 +81,10 @@ impl MainWindow {
         self.pods.logs_reloaded(pod_name, logs);
     }
 
+    pub fn close_logs(&mut self) {
+        self.pods.close_logs();
+    }
+
     pub fn show_logs(&mut self, logs: PodLogs) {
         self.pods.show_logs(logs);
     }
@@ -102,31 +110,16 @@ impl MainWindow {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) {
-        match self.kind {
-            MainWindowKind::Namespaces => {
-                if self.namespaces.handle_key_event(key) {
-                    return;
-                }
-            }
+        let result = match self.kind {
+            MainWindowKind::Clusters => self.clusters.handle_key_event(key),
+            MainWindowKind::Namespaces => self.namespaces.handle_key_event(key),
+            MainWindowKind::Pods => self.pods.handle_key_event(key),
+            MainWindowKind::PortForward => self.port_forwards.handle_key_event(key),
+        };
 
-            MainWindowKind::Clusters => {
-                if self.clusters.handle_key_event(key) {
-                    return;
-                };
-            }
-
-            MainWindowKind::PortForward => {
-                self.port_forwards.handle_key_event(key);
-            }
-
-            MainWindowKind::Pods => {
-                if self.pods.handle_key_event(key) {
-                    return;
-                }
-            }
+        if result == KeyEventResult::Ignored {
+            handle_general_keys(key, &self.event_sender);
         }
-
-        handle_general_keys(key, &self.event_sender);
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
