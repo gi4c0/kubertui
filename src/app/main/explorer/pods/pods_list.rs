@@ -264,14 +264,11 @@ impl PodsList {
                 let index = self.filtered_list[self.state.selected().unwrap_or(0)];
                 let pod_container = &mut self.original_list[index];
 
-                let spinner = Spinner::new();
-                pod_container.spinner = Some(spinner.clone());
-
-                let pod_name = pod_container.pod.name.clone();
+                pod_container.spinner = Some(Spinner::new());
 
                 self.event_sender.send(AppEvent::LoadLogs {
                     namespace: self.namespace.clone(),
-                    pod_name,
+                    pod_name: pod_container.pod.name.clone(),
                 });
             }
             _ => return KeyEventResult::Ignored,
@@ -280,9 +277,16 @@ impl PodsList {
         KeyEventResult::Consumed
     }
 
-    pub fn stop_spinner(&mut self) {
-        let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-        let pod_container = &mut self.original_list[index];
+    /// Stops by pod name, not by selection: the selection may have moved while
+    /// the logs were loading.
+    pub fn stop_spinner(&mut self, pod_name: &str) {
+        let Some(pod_container) = self
+            .original_list
+            .iter_mut()
+            .find(|item| item.pod.name == pod_name)
+        else {
+            return;
+        };
 
         if let Some(spinner) = pod_container.spinner.as_mut() {
             spinner.stop();

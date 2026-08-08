@@ -46,9 +46,9 @@ impl Pods {
         }
     }
 
-    pub fn stop_spinner(&mut self) {
+    pub fn stop_spinner(&mut self, pod_name: &str) {
         if let Some(pods_list) = self.pods_list.as_mut() {
-            pods_list.stop_spinner();
+            pods_list.stop_spinner(pod_name);
         }
     }
 

@@ -66,8 +66,8 @@ impl MainWindow {
         self.explorer.set_clusters(clusters);
     }
 
-    pub fn stop_pods_spinner(&mut self) {
-        self.explorer.stop_pods_spinner();
+    pub fn stop_pods_spinner(&mut self, pod_name: &str) {
+        self.explorer.stop_pods_spinner(pod_name);
     }
 
     pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
@@ -78,8 +78,12 @@ impl MainWindow {
         self.logs.logs_reloaded(pod_name, logs);
     }
 
-    pub async fn get_lgos(&mut self, namespace: String, pod_name: String) -> AppResult<()> {
-        self.logs.get_logs(namespace, pod_name).await
+    pub fn load_logs(&self, namespace: String, pod_name: String) {
+        PodLogs::load_logs(namespace, pod_name, self.event_sender.clone());
+    }
+
+    pub fn set_logs(&mut self, namespace: String, pod_name: String, logs: Vec<String>) {
+        self.logs.set_logs(namespace, pod_name, logs);
     }
 
     pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {

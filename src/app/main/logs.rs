@@ -54,18 +54,32 @@ impl PodLogs {
         }
     }
 
-    pub async fn get_logs(&mut self, namespace: String, pod_name: String) -> AppResult<()> {
-        let logs = Self::load_prettified_logs(&namespace, &pod_name).await?;
+    /// Loads the logs off the event loop so the UI keeps redrawing while
+    /// `kubectl` runs. Completion arrives as [`AppEvent::LogsLoaded`].
+    pub fn load_logs(namespace: String, pod_name: String, event_sender: EventSender) {
+        tokio::spawn(async move {
+            let logs = match Self::load_prettified_logs(&namespace, &pod_name).await {
+                Ok(logs) => Some(logs),
+                Err(err) => {
+                    event_sender.send(AppEvent::ShowNotification(Notification::error(err)));
+                    None
+                }
+            };
 
+            event_sender.send(AppEvent::LogsLoaded {
+                namespace,
+                pod_name,
+                logs,
+            });
+        });
+    }
+
+    pub fn set_logs(&mut self, namespace: String, pod_name: String, logs: Vec<String>) {
         self.scrollbar_state = ScrollbarState::new(logs.len());
         self.filtered_list = logs.iter().enumerate().map(|(index, _)| index).collect();
         self.logs = logs;
         self.pod_name = pod_name;
         self.namespace = namespace;
-
-        self.event_sender.send(AppEvent::LogsLoaded);
-
-        Ok(())
     }
 
     async fn load_prettified_logs(namespace: &str, pod_name: &str) -> AppResult<Vec<String>> {

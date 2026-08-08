@@ -53,8 +53,8 @@ impl Explorer {
         }
     }
 
-    pub fn stop_pods_spinner(&mut self) {
-        self.pods.stop_spinner();
+    pub fn stop_pods_spinner(&mut self, pod_name: &str) {
+        self.pods.stop_spinner(pod_name);
     }
 
     pub fn set_kind(&mut self, kind: ExplorerKind) {

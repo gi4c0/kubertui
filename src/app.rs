@@ -147,8 +147,9 @@ impl App {
                 namespace,
                 pod_name,
             } => {
-                self.main_window.get_lgos(namespace, pod_name).await?;
-                self.update_active_window(MainWindowKind::Logs, None);
+                // Stay in the pods list until the logs arrive so the spinner is
+                // visible; the window switches on `LogsLoaded`.
+                self.main_window.load_logs(namespace, pod_name);
             }
 
             AppEvent::ShowExplorer(kind) => {
@@ -159,8 +160,17 @@ impl App {
                 self.main_window.set_clusters(clusters);
             }
 
-            AppEvent::LogsLoaded => {
-                self.main_window.stop_pods_spinner();
+            AppEvent::LogsLoaded {
+                namespace,
+                pod_name,
+                logs,
+            } => {
+                self.main_window.stop_pods_spinner(&pod_name);
+
+                if let Some(logs) = logs {
+                    self.main_window.set_logs(namespace, pod_name, logs);
+                    self.update_active_window(MainWindowKind::Logs, None);
+                }
             }
 
             AppEvent::PodsUpdated { namespace, pods } => {
