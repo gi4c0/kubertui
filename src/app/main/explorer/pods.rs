@@ -7,7 +7,7 @@ use crate::{
     app::{
         cache::PodsCache,
         events::{EventSender, KeyEventResult},
-        main::pods::pods_list::PodsList,
+        main::explorer::pods::pods_list::PodsList,
     },
     kubectl::pods::Pod,
 };

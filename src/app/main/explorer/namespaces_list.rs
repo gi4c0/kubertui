@@ -3,6 +3,7 @@ use crate::{
         cache::{NamespaceItemCache, NamespacesListCache},
         common::{FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
         events::{AppEvent, EventSender, KeyEventResult},
+        main::explorer::ExplorerKind,
         modal::Modal,
         notification::Notification,
     },
@@ -36,7 +37,7 @@ impl NamespacesList {
         }
     }
 
-    pub fn draw<'a>(&'a mut self, area: Rect, frame: &mut Frame) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         self.namespace_list
             .draw_with_title(area, frame, "Namespaces");
     }
@@ -60,23 +61,6 @@ impl NamespacesList {
         );
     }
 
-    pub fn add_namespace(&mut self, namespace: String) {
-        let existing_index = self
-            .namespace_list
-            .inner_list
-            .iter()
-            .position(|i| i.value.as_str() == namespace.as_str());
-
-        if let Some(existing_index) = existing_index {
-            self.namespace_list.inner_list.remove(existing_index);
-        }
-
-        self.namespace_list.append_to_list(NamespaceItem {
-            spinner: None,
-            value: namespace,
-        });
-    }
-
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         if let Some(list_event) = self.namespace_list.handle_key(key) {
             match list_event {
@@ -89,13 +73,19 @@ impl NamespacesList {
             return KeyEventResult::Consumed;
         }
 
-        if let KeyCode::Char('?') = key.code {
-            self.event_sender
-                .send(AppEvent::OpenModal(Modal::help(HelpMenuEnum::Namespaces)));
-            return KeyEventResult::Consumed;
+        match key.code {
+            KeyCode::Char('?') => {
+                self.event_sender
+                    .send(AppEvent::OpenModal(Modal::help(HelpMenuEnum::Namespaces)));
+            }
+            KeyCode::Esc => {
+                self.event_sender
+                    .send(AppEvent::ShowExplorer(ExplorerKind::Clusters));
+            }
+            _ => return KeyEventResult::Ignored,
         };
 
-        KeyEventResult::Ignored
+        KeyEventResult::Consumed
     }
 
     pub fn load_pods(&mut self, namespace_item: NamespaceItem) {

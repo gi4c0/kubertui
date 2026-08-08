@@ -13,8 +13,11 @@ use crate::{
         cache::{PodsListCache, StateCache},
         common::{HelpMenuEnum, Spinner, build_block, get_highlight_style},
         events::{AppEvent, EventSender, KeyEventResult},
-        main::pods::pods_list::{
-            delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
+        main::explorer::{
+            ExplorerKind,
+            pods::pods_list::{
+                delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
+            },
         },
         modal::Modal,
         notification::Notification,
@@ -211,6 +214,11 @@ impl PodsList {
         }
 
         match key.code {
+            KeyCode::Esc => {
+                self.event_sender
+                    .send(AppEvent::ShowExplorer(ExplorerKind::Namespaces));
+            }
+
             KeyCode::Char('q') => {
                 self.event_sender.send(AppEvent::Quit);
             }

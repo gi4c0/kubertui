@@ -7,7 +7,7 @@ use ratatui::crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{MainWindowKind, modal::Modal, notification::Notification},
+    app::{MainWindowKind, main::explorer::ExplorerKind, modal::Modal, notification::Notification},
     error::{AppError, AppResult},
     kubectl::pods::Pod,
 };
@@ -29,6 +29,7 @@ pub enum AppEvent {
     Focus(MainWindowKind),
     FocusNext,
     FocusPrev,
+    ShowExplorer(ExplorerKind),
     Quit,
     LoadNamespaces(Vec<String>),
     ShowPods { pods: Vec<Pod>, namespace: String },

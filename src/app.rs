@@ -2,7 +2,7 @@ pub mod cache;
 pub mod common;
 mod events;
 mod header;
-mod main;
+pub mod main;
 pub mod modal;
 mod notification;
 
@@ -21,7 +21,10 @@ use crate::{
         cache::AppCache,
         events::{AppEvent, EventHandler},
         header::Header,
-        main::{MainWindow, explorer::ExplorerKind, pods::pods_list},
+        main::{
+            MainWindow,
+            explorer::{ExplorerKind, pods::pods_list},
+        },
         modal::{Modal, ModalAction, ModalOutcome},
         notification::NotificationWidget,
     },
@@ -132,13 +135,12 @@ impl App {
                 // TODO: Implement recency
                 // self.side_bar.root_space.add_to_recent(namespace.clone());
                 self.main_window.show_pods(namespace, pods);
-                self.update_active_window(MainWindowKind::Explorer);
-                self.header.set_explorer_kind(ExplorerKind::Pods);
+                self.update_active_window(MainWindowKind::Explorer, Some(ExplorerKind::Pods));
             }
 
             AppEvent::LoadNamespaces(namespaces) => {
                 self.main_window.show_namespaces(namespaces);
-                self.update_active_window(MainWindowKind::Explorer);
+                self.update_active_window(MainWindowKind::Explorer, Some(ExplorerKind::Namespaces));
             }
 
             AppEvent::LoadLogs {
@@ -146,8 +148,11 @@ impl App {
                 pod_name,
             } => {
                 self.main_window.get_lgos(namespace, pod_name).await?;
-                self.active_window = MainWindowKind::Logs;
-                self.main_window.update_active_window(MainWindowKind::Logs);
+                self.update_active_window(MainWindowKind::Logs, None);
+            }
+
+            AppEvent::ShowExplorer(kind) => {
+                self.update_active_window(MainWindowKind::Explorer, Some(kind));
             }
 
             AppEvent::ClustersLoaded(clusters) => {
@@ -174,8 +179,8 @@ impl App {
 
             AppEvent::Focus(active_window) => self.active_window = active_window,
 
-            AppEvent::FocusNext => self.update_active_window(self.next_focus()),
-            AppEvent::FocusPrev => self.update_active_window(self.prev_focus()),
+            AppEvent::FocusNext => self.update_active_window(self.next_focus(), None),
+            AppEvent::FocusPrev => self.update_active_window(self.prev_focus(), None),
         }
 
         Ok(())
@@ -223,10 +228,19 @@ impl App {
         self.header = cache.header;
     }
 
-    pub fn update_active_window(&mut self, new_active_window: MainWindowKind) {
+    fn update_active_window(
+        &mut self,
+        new_active_window: MainWindowKind,
+        explorer_kind: Option<ExplorerKind>,
+    ) {
         self.active_window = new_active_window;
-        self.main_window.update_active_window(new_active_window);
+        self.main_window
+            .set_active_window(new_active_window, explorer_kind);
         self.header.set_active(new_active_window);
+
+        if let Some(kind) = explorer_kind {
+            self.header.set_explorer_kind(kind);
+        }
     }
 }
 

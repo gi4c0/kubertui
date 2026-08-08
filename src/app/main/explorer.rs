@@ -6,9 +6,8 @@ use crate::{
     app::{
         cache::ExplorerCache,
         events::{EventSender, KeyEventResult},
-        main::{
-            explorer::{clusters_list::ClustersList, namespaces_list::NamespacesList},
-            pods::Pods,
+        main::explorer::{
+            clusters_list::ClustersList, namespaces_list::NamespacesList, pods::Pods,
         },
     },
     error::AppResult,
@@ -17,8 +16,9 @@ use crate::{
 
 pub mod clusters_list;
 pub mod namespaces_list;
+pub mod pods;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum ExplorerKind {
     Clusters,
     Namespaces,
@@ -55,6 +55,10 @@ impl Explorer {
 
     pub fn stop_pods_spinner(&mut self) {
         self.pods.stop_spinner();
+    }
+
+    pub fn set_kind(&mut self, kind: ExplorerKind) {
+        self.kind = kind;
     }
 
     pub fn show_namespaces(&mut self, namespaces: Vec<String>) {
@@ -100,6 +104,11 @@ impl Explorer {
 
 impl From<Explorer> for ExplorerCache {
     fn from(value: Explorer) -> Self {
-        value.into()
+        Self {
+            kind: value.kind,
+            clusters: value.clusters.into(),
+            namespaces: value.namespaces.into(),
+            pods: value.pods.into(),
+        }
     }
 }

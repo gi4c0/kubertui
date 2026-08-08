@@ -3,11 +3,11 @@ use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 use crate::app::{
     common::{HelpMenu, HelpMenuEnum},
     main::{
-        logs::log_item::LogItem,
-        pods::pods_list::{
+        explorer::pods::pods_list::{
             delete_pod_alert::{DeletePodAction, DeletePodAlert},
             port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
         },
+        logs::log_item::LogItem,
     },
     notification::NotificationWidget,
 };

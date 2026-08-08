@@ -8,11 +8,7 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
-use crate::app::{
-    MainWindowKind,
-    common::build_block,
-    main::{explorer::ExplorerKind, pods::PodsKind},
-};
+use crate::app::{MainWindowKind, common::build_block, main::explorer::ExplorerKind};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Header {

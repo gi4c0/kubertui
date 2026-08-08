@@ -1,5 +1,5 @@
 use crate::app::common::handle_general_keys;
-use crate::app::main::explorer::Explorer;
+use crate::app::main::explorer::{Explorer, ExplorerKind};
 use crate::app::main::port_forwards::PortForwardsList;
 use crate::app::{MainWindowKind, main::logs::PodLogs};
 use crate::error::AppResult;
@@ -15,7 +15,6 @@ use crate::{
 
 pub mod explorer;
 pub mod logs;
-pub mod pods;
 mod port_forwards;
 
 #[derive(Debug, Clone)]
@@ -105,7 +104,7 @@ impl MainWindow {
         let result = match self.kind {
             MainWindowKind::Explorer => self.explorer.handle_key_event(key),
             MainWindowKind::PortForward => self.port_forwards.handle_key_event(key),
-            MainWindowKind::Logs => todo!(),
+            MainWindowKind::Logs => self.logs.handle_key_event(key),
         };
 
         if result == KeyEventResult::Ignored {
@@ -117,11 +116,18 @@ impl MainWindow {
         match self.kind {
             MainWindowKind::Explorer => self.explorer.draw(area, frame),
             MainWindowKind::PortForward => self.port_forwards.draw(area, frame),
-            MainWindowKind::Logs => todo!(),
+            MainWindowKind::Logs => self.logs.draw(area, frame),
         };
     }
 
-    pub fn update_active_window(&mut self, new_active_window: MainWindowKind) {
+    pub fn set_active_window(
+        &mut self,
+        new_active_window: MainWindowKind,
+        explorer_kind: Option<ExplorerKind>,
+    ) {
         self.kind = new_active_window;
+        if let Some(kind) = explorer_kind {
+            self.explorer.set_kind(kind);
+        }
     }
 }
