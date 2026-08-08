@@ -7,9 +7,7 @@ use ratatui::crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{
-        MainWindowKind, main::pods::logs::PodLogs, modal::Modal, notification::Notification,
-    },
+    app::{MainWindowKind, modal::Modal, notification::Notification},
     error::{AppError, AppResult},
     kubectl::pods::Pod,
 };
@@ -33,21 +31,12 @@ pub enum AppEvent {
     FocusPrev,
     Quit,
     LoadNamespaces(Vec<String>),
-    ShowPods {
-        pods: Vec<Pod>,
-        namespace: String,
-    },
-    ShowLogs(PodLogs),
-    CloseLogs,
+    ShowPods { pods: Vec<Pod>, namespace: String },
+    LoadLogs { namespace: String, pod_name: String },
+    LogsLoaded,
     ClustersLoaded(Vec<String>),
-    PodsUpdated {
-        namespace: String,
-        pods: Vec<Pod>,
-    },
-    LogsReloaded {
-        pod_name: String,
-        logs: Vec<String>,
-    },
+    PodsUpdated { namespace: String, pods: Vec<Pod> },
+    LogsReloaded { pod_name: String, logs: Vec<String> },
     ShowNotification(Notification),
     OpenModal(Modal),
 }

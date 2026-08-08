@@ -8,6 +8,7 @@ use crate::{app::App, error::AppResult};
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let mut terminal = ratatui::init();
+    terminal.clear()?;
     let app_result = App::default().run(&mut terminal).await;
     ratatui::restore();
     app_result

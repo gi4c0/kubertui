@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    app::{App, MainWindowKind, header::Header, main::pods::PodsKind},
+    app::{
+        App, MainWindowKind,
+        header::Header,
+        main::{explorer::ExplorerKind, pods::PodsKind},
+    },
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},
     kubectl::pods::Pod,
@@ -63,10 +67,16 @@ pub struct ClusterCache {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MainWindowCache {
     pub kind: MainWindowKind,
+    pub explorer: ExplorerCache,
+    pub port_forwards: PortForwardsListCache,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExplorerCache {
+    pub kind: ExplorerKind,
     pub clusters: ClustersListCache,
     pub namespaces: NamespacesListCache,
     pub pods: PodsCache,
-    pub port_forwards: PortForwardsListCache,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

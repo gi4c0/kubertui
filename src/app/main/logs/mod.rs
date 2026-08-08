@@ -14,7 +14,7 @@ use crate::{
     app::{
         common::{FOCUS_COLOR, HelpMenuEnum, build_block, scroll},
         events::{AppEvent, EventSender, KeyEventResult},
-        main::pods::logs::log_item::LogItem,
+        main::logs::log_item::LogItem,
         modal::Modal,
         notification::Notification,
     },
@@ -38,29 +38,37 @@ pub struct PodLogs {
 }
 
 impl PodLogs {
-    pub async fn initial_load(
-        namespace: String,
-        pod_name: String,
-        event_sender: EventSender,
-    ) -> AppResult<Self> {
-        let logs = Self::load_logs(&namespace, &pod_name).await?;
-
-        Ok(Self {
+    pub fn new(event_sender: EventSender) -> Self {
+        Self {
             event_sender,
             active_filter_index: 0,
             filters: Vec::new(),
-            scrollbar_state: ScrollbarState::new(logs.len()),
+            scrollbar_state: ScrollbarState::new(0),
             add_new_filter_mod: false,
             edit_filters_mod: false,
-            filtered_list: logs.iter().enumerate().map(|(index, _)| index).collect(),
-            pod_name,
-            namespace,
-            logs,
+            filtered_list: vec![],
+            pod_name: String::new(),
+            namespace: String::new(),
+            logs: vec![],
             state: ListState::default(),
-        })
+        }
     }
 
-    async fn load_logs(namespace: &str, pod_name: &str) -> AppResult<Vec<String>> {
+    pub async fn get_logs(&mut self, namespace: String, pod_name: String) -> AppResult<()> {
+        let logs = Self::load_prettified_logs(&namespace, &pod_name).await?;
+
+        self.scrollbar_state = ScrollbarState::new(logs.len());
+        self.filtered_list = logs.iter().enumerate().map(|(index, _)| index).collect();
+        self.logs = logs;
+        self.pod_name = pod_name;
+        self.namespace = namespace;
+
+        self.event_sender.send(AppEvent::LogsLoaded);
+
+        Ok(())
+    }
+
+    async fn load_prettified_logs(namespace: &str, pod_name: &str) -> AppResult<Vec<String>> {
         let mut logs = kubectl::load_logs(namespace, pod_name).await?;
         logs.reverse();
 
@@ -87,7 +95,7 @@ impl PodLogs {
         let event_sender = self.event_sender.clone();
 
         tokio::spawn(async move {
-            match Self::load_logs(&namespace, &pod_name).await {
+            match Self::load_prettified_logs(&namespace, &pod_name).await {
                 Ok(logs) => event_sender.send(AppEvent::LogsReloaded { pod_name, logs }),
                 Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::error(err))),
             }
@@ -251,10 +259,6 @@ impl PodLogs {
         }
 
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                self.event_sender.send(AppEvent::CloseLogs);
-            }
-
             KeyCode::Char('/') => {
                 self.filters.push(String::new());
                 self.add_new_filter_mod = true;
@@ -305,9 +309,11 @@ impl PodLogs {
                     let index = &self.filtered_list[selected];
                     let log = &self.logs[*index];
 
-                    self.event_sender.send(AppEvent::OpenModal(Modal::LogDetail(
-                        LogItem::new(log.clone(), self.pod_name.clone()),
-                    )));
+                    self.event_sender
+                        .send(AppEvent::OpenModal(Modal::LogDetail(LogItem::new(
+                            log.clone(),
+                            self.pod_name.clone(),
+                        ))));
                 }
             }
             _ => return KeyEventResult::Ignored,

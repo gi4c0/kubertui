@@ -2,9 +2,9 @@ use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 
 use crate::app::{
     common::{HelpMenu, HelpMenuEnum},
-    main::pods::{
+    main::{
         logs::log_item::LogItem,
-        pods_list::{
+        pods::pods_list::{
             delete_pod_alert::{DeletePodAction, DeletePodAlert},
             port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
         },

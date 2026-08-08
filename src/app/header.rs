@@ -8,19 +8,23 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
-use crate::app::{MainWindowKind, common::build_block, main::pods::PodsKind};
+use crate::app::{
+    MainWindowKind,
+    common::build_block,
+    main::{explorer::ExplorerKind, pods::PodsKind},
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Header {
     active: MainWindowKind,
-    pods_kind: PodsKind,
+    explorer_kind: ExplorerKind,
 }
 
 impl Header {
     pub fn new() -> Self {
         Self {
-            active: MainWindowKind::Clusters,
-            pods_kind: PodsKind::List,
+            active: MainWindowKind::Explorer,
+            explorer_kind: ExplorerKind::Clusters,
         }
     }
 
@@ -28,8 +32,8 @@ impl Header {
         self.active = new_active;
     }
 
-    pub fn set_pods_kind(&mut self, pods_kind: PodsKind) {
-        self.pods_kind = pods_kind;
+    pub fn set_explorer_kind(&mut self, explorer_kind: ExplorerKind) {
+        self.explorer_kind = explorer_kind;
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
@@ -68,10 +72,10 @@ impl Header {
 
     fn get_tab_text<'a>(&self, tab: &'a MainWindowKind) -> &'a str {
         match tab {
-            MainWindowKind::Pods => match self.pods_kind {
-                PodsKind::Logs => "Pods -> Logs",
-                PodsKind::Info => "Pods -> Info",
-                _ => tab.as_ref(),
+            MainWindowKind::Explorer => match self.explorer_kind {
+                ExplorerKind::Clusters => "Clusters",
+                ExplorerKind::Namespaces => "Clusters -> Namespaces",
+                ExplorerKind::Pods => "Clusters -> Namespaces -> Pods",
             },
             _ => tab.as_ref(),
         }

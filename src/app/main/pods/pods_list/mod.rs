@@ -13,11 +13,8 @@ use crate::{
         cache::{PodsListCache, StateCache},
         common::{HelpMenuEnum, Spinner, build_block, get_highlight_style},
         events::{AppEvent, EventSender, KeyEventResult},
-        main::pods::{
-            logs::PodLogs,
-            pods_list::{
-                delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
-            },
+        main::pods::pods_list::{
+            delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
         },
         modal::Modal,
         notification::Notification,
@@ -184,7 +181,6 @@ impl PodsList {
         } else {
             frame.render_stateful_widget(table, area, &mut self.state);
         }
-
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
@@ -222,11 +218,9 @@ impl PodsList {
             KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
             KeyCode::Char('d') => {
                 if let Some(pod_name) = self.get_selected_pod_name() {
-                    self.event_sender
-                        .send(AppEvent::OpenModal(Modal::DeletePod(DeletePodAlert::new(
-                            self.namespace.clone(),
-                            pod_name.to_owned(),
-                        ))));
+                    self.event_sender.send(AppEvent::OpenModal(Modal::DeletePod(
+                        DeletePodAlert::new(self.namespace.clone(), pod_name.to_owned()),
+                    )));
                 }
             }
             KeyCode::Char('G') => {
@@ -267,17 +261,26 @@ impl PodsList {
 
                 let pod_name = pod_container.pod.name.clone();
 
-                Self::load_logs(
-                    self.namespace.clone(),
+                self.event_sender.send(AppEvent::LoadLogs {
+                    namespace: self.namespace.clone(),
                     pod_name,
-                    self.event_sender.clone(),
-                    spinner,
-                );
+                });
             }
             _ => return KeyEventResult::Ignored,
         };
 
         KeyEventResult::Consumed
+    }
+
+    pub fn stop_spinner(&mut self) {
+        let index = self.filtered_list[self.state.selected().unwrap_or(0)];
+        let pod_container = &mut self.original_list[index];
+
+        if let Some(spinner) = pod_container.spinner.as_mut() {
+            spinner.stop();
+        }
+
+        pod_container.spinner = None;
     }
 
     fn get_selected_pod_name(&self) -> Option<&str> {
@@ -298,30 +301,6 @@ impl PodsList {
 
         self.update_pods(pods);
         self.update_filtered_list();
-    }
-
-    fn load_logs(
-        namespace: String,
-        pod_name: String,
-        event_sender: EventSender,
-        mut spinner: Spinner,
-    ) {
-        tokio::spawn(async move {
-            let logs = match PodLogs::initial_load(namespace, pod_name, event_sender.clone()).await {
-                Ok(logs) => logs,
-                Err(err) => {
-                    spinner.stop();
-
-                    event_sender.send(AppEvent::ShowNotification(Notification::error(
-                        err.to_string(),
-                    )));
-                    return;
-                }
-            };
-
-            event_sender.send(AppEvent::ShowLogs(logs));
-            spinner.stop();
-        });
     }
 
     fn update_filtered_list(&mut self) {

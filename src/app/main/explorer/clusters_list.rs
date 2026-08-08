@@ -126,8 +126,9 @@ impl ClustersList {
                 tokio::spawn(async move {
                     match kubectl::get_clusters().await {
                         Ok(clusters) => event_sender.send(AppEvent::ClustersLoaded(clusters)),
-                        Err(err) => event_sender
-                            .send(AppEvent::ShowNotification(Notification::error(err))),
+                        Err(err) => {
+                            event_sender.send(AppEvent::ShowNotification(Notification::error(err)))
+                        }
                     }
                 });
             }

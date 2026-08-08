@@ -7,25 +7,22 @@ use crate::{
     app::{
         cache::PodsCache,
         events::{EventSender, KeyEventResult},
-        main::pods::{logs::PodLogs, pods_list::PodsList},
+        main::pods::pods_list::PodsList,
     },
     kubectl::pods::Pod,
 };
 
-pub mod logs;
 pub mod pods_list;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone, VariantArray, AsRefStr)]
 pub enum PodsKind {
     List,
-    Logs,
     Info,
 }
 
 #[derive(Debug, Clone)]
 pub struct Pods {
     pods_list: Option<PodsList>,
-    pod_logs: Option<PodLogs>,
     kind: PodsKind,
     event_sender: EventSender,
 }
@@ -35,7 +32,6 @@ impl Pods {
         Self {
             pods_list: None,
             event_sender,
-            pod_logs: None,
             kind: PodsKind::List,
         }
     }
@@ -47,9 +43,15 @@ impl Pods {
                 .pods_list
                 .map(|pods_list| PodsList::from_cache(pods_list, event_sender.clone())),
             event_sender,
-            pod_logs: None,
         }
     }
+
+    pub fn stop_spinner(&mut self) {
+        if let Some(pods_list) = self.pods_list.as_mut() {
+            pods_list.stop_spinner();
+        }
+    }
+
     pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
         let pod_list = PodsList::new(self.event_sender.clone(), namespace, pods);
 
@@ -57,22 +59,11 @@ impl Pods {
         self.kind = PodsKind::List;
     }
 
-    pub fn show_logs(&mut self, logs: PodLogs) {
-        self.pod_logs = Some(logs);
-        self.kind = PodsKind::Logs;
-    }
-
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
         match self.kind {
             PodsKind::List => {
                 if let Some(pods_list) = self.pods_list.as_mut() {
                     pods_list.draw(area, frame);
-                }
-            }
-
-            PodsKind::Logs => {
-                if let Some(pod_logs) = self.pod_logs.as_mut() {
-                    pod_logs.draw(area, frame);
                 }
             }
 
@@ -86,12 +77,6 @@ impl Pods {
         }
     }
 
-    pub fn logs_reloaded(&mut self, pod_name: &str, logs: Vec<String>) {
-        if let Some(pod_logs) = self.pod_logs.as_mut() {
-            pod_logs.logs_reloaded(pod_name, logs);
-        }
-    }
-
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         match self.kind {
             PodsKind::List => {
@@ -100,20 +85,10 @@ impl Pods {
                 }
             }
 
-            PodsKind::Logs => {
-                if let Some(pod_logs) = self.pod_logs.as_mut() {
-                    return pod_logs.handle_key_event(key);
-                }
-            }
-
             PodsKind::Info => todo!(),
         };
 
         KeyEventResult::Ignored
-    }
-
-    pub fn close_logs(&mut self) {
-        self.kind = PodsKind::List;
     }
 }
 
