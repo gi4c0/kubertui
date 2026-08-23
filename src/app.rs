@@ -152,6 +152,8 @@ impl App {
                 self.main_window.load_logs(namespace, pod_name);
             }
 
+            AppEvent::ReloadLogs => self.main_window.reload_logs(),
+
             AppEvent::ShowExplorer(kind) => {
                 self.update_active_window(MainWindowKind::Explorer, Some(kind));
             }
@@ -178,7 +180,7 @@ impl App {
             }
 
             AppEvent::LogsReloaded { pod_name, logs } => {
-                self.main_window.logs_reloaded(&pod_name, logs);
+                self.main_window.logs_reloaded(pod_name, logs);
             }
 
             AppEvent::ShowNotification(notification) => self

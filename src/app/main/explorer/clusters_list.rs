@@ -108,16 +108,14 @@ impl ClustersList {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
-        if let Some(list_event) = self.list.handle_key(key) {
-            match list_event {
-                ListEvent::Quit => {
-                    self.event_sender.send(AppEvent::Quit);
-                }
-                ListEvent::SelectedItem(cluster) => self.on_cluster_selected(cluster),
-                ListEvent::StayInList => {}
-            };
-            return KeyEventResult::Consumed;
-        }
+        match self.list.handle_key(key) {
+            ListEvent::Quit => {
+                self.event_sender.send(AppEvent::Quit);
+            }
+            ListEvent::SelectedItem(cluster) => self.on_cluster_selected(cluster),
+            ListEvent::Consumed => return KeyEventResult::Consumed,
+            ListEvent::Ignored => {}
+        };
 
         match key.code {
             KeyCode::Char('r') => {

@@ -62,16 +62,14 @@ impl NamespacesList {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
-        if let Some(list_event) = self.namespace_list.handle_key(key) {
-            match list_event {
-                ListEvent::Quit => {
-                    self.event_sender.send(AppEvent::Quit);
-                }
-                ListEvent::SelectedItem(item) => self.load_pods(item),
-                ListEvent::StayInList => {}
-            };
-            return KeyEventResult::Consumed;
-        }
+        match self.namespace_list.handle_key(key) {
+            ListEvent::Quit => {
+                self.event_sender.send(AppEvent::Quit);
+            }
+            ListEvent::SelectedItem(item) => self.load_pods(item),
+            ListEvent::Consumed => return KeyEventResult::Consumed,
+            ListEvent::Ignored => {}
+        };
 
         match key.code {
             KeyCode::Char('?') => {

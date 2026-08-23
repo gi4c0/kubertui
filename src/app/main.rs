@@ -1,7 +1,7 @@
 use crate::app::common::handle_general_keys;
 use crate::app::main::explorer::{Explorer, ExplorerKind};
 use crate::app::main::port_forwards::PortForwardsList;
-use crate::app::{MainWindowKind, main::logs::PodLogs};
+use crate::app::{MainWindowKind, main::logs::Logs};
 use crate::error::AppResult;
 use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 
@@ -23,7 +23,12 @@ pub struct MainWindow {
     kind: MainWindowKind,
     explorer: Explorer,
     port_forwards: PortForwardsList,
-    logs: PodLogs,
+    logs: Logs,
+}
+
+pub struct NamespacePod {
+    pub namespace: String,
+    pub pod: String,
 }
 
 impl From<MainWindow> for MainWindowCache {
@@ -43,7 +48,7 @@ impl MainWindow {
             kind: MainWindowKind::Explorer,
             explorer: Explorer::new(event_sender.clone()),
             port_forwards: PortForwardsList::new(event_sender.clone()),
-            logs: PodLogs::new(event_sender.clone()),
+            logs: Logs::new(event_sender.clone()),
         }
     }
 
@@ -66,6 +71,10 @@ impl MainWindow {
         self.explorer.set_clusters(clusters);
     }
 
+    pub fn reload_logs(&self) {
+        self.logs.reload_logs();
+    }
+
     pub fn stop_pods_spinner(&mut self, pod_name: &str) {
         self.explorer.stop_pods_spinner(pod_name);
     }
@@ -74,16 +83,16 @@ impl MainWindow {
         self.explorer.pods_updated(namespace, pods);
     }
 
-    pub fn logs_reloaded(&mut self, pod_name: &str, logs: Vec<String>) {
+    pub fn logs_reloaded(&mut self, pod_name: String, logs: Vec<String>) {
         self.logs.logs_reloaded(pod_name, logs);
     }
 
     pub fn load_logs(&self, namespace: String, pod_name: String) {
-        PodLogs::load_logs(namespace, pod_name, self.event_sender.clone());
+        Logs::load_logs(namespace, pod_name, self.event_sender.clone());
     }
 
     pub fn set_logs(&mut self, namespace: String, pod_name: String, logs: Vec<String>) {
-        self.logs.set_logs(namespace, pod_name, logs);
+        self.logs.add_pod_logs(namespace, pod_name, logs);
     }
 
     pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
@@ -100,7 +109,7 @@ impl MainWindow {
             explorer: Explorer::from_cache(value.explorer, event_sender.clone()),
             port_forwards: PortForwardsList::from_cache(value.port_forwards, event_sender.clone()),
             event_sender: event_sender.clone(),
-            logs: PodLogs::new(event_sender.clone()),
+            logs: Logs::new(event_sender.clone()),
         }
     }
 

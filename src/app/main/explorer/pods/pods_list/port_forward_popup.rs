@@ -97,18 +97,17 @@ impl PortForwardPopup {
             return None;
         }
 
-        if let Some(list_event) = self.pod_containers_list.handle_key(key) {
-            match list_event {
-                ListEvent::Quit => {
-                    return Some(PortForwardPopupAction::Quit);
-                }
-                ListEvent::SelectedItem(item) => {
-                    self.port = item.port.to_string();
-                    self.selected_container = Some(item);
-                }
-                ListEvent::StayInList => {}
-            };
-        }
+        match self.pod_containers_list.handle_key(key) {
+            ListEvent::Quit => {
+                return Some(PortForwardPopupAction::Quit);
+            }
+            ListEvent::SelectedItem(item) => {
+                self.port = item.port.to_string();
+                self.selected_container = Some(item);
+            }
+            ListEvent::Consumed => return None,
+            ListEvent::Ignored => {}
+        };
 
         match key.code {
             KeyCode::Esc => Some(PortForwardPopupAction::Quit),

@@ -184,8 +184,8 @@ impl PortForwardsList {
         Ok(false)
     }
 
-    pub fn add_to_list(&mut self, new_item: PortForward) {
-        self.list.append_to_list(new_item);
+    fn add_to_list(&mut self, new_item: PortForward) {
+        self.list.push(new_item);
     }
 
     pub fn add_to_list_and_port_forward(
@@ -232,13 +232,14 @@ impl PortForwardsList {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
-        // Handle inner_list keys
-        if let Some(event) = self.list.handle_key(key) {
-            if event == ListEvent::Quit {
+        match self.list.handle_key(key) {
+            ListEvent::Quit => {
                 self.event_sender.send(AppEvent::Quit);
+                return KeyEventResult::Consumed;
             }
-            return KeyEventResult::Consumed;
-        }
+            ListEvent::Consumed => return KeyEventResult::Consumed,
+            _ => {}
+        };
 
         match key.code {
             KeyCode::Char('p') | KeyCode::Enter | KeyCode::Char(' ') => {

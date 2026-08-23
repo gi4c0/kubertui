@@ -102,7 +102,7 @@ impl<Item> FilterableList<Item>
 where
     Item: Clone + ListItemTrait,
 {
-    pub fn append_to_list(&mut self, new_item: Item) {
+    pub fn push(&mut self, new_item: Item) {
         self.inner_list.insert(0, new_item);
         self.update_filtered_list();
     }
@@ -206,7 +206,7 @@ where
         }
     }
 
-    pub fn handle_key(&mut self, key: KeyEvent) -> Option<ListEvent<Item>> {
+    pub fn handle_key(&mut self, key: KeyEvent) -> ListEvent<Item> {
         if self.is_filter_mod {
             match key.code {
                 KeyCode::Enter => {
@@ -227,10 +227,10 @@ where
                     self.filter.push(ch);
                     self.update_filtered_list();
                 }
-                _ => {}
+                _ => return ListEvent::Ignored,
             };
 
-            return Some(ListEvent::StayInList);
+            return ListEvent::Consumed;
         }
 
         match key.code {
@@ -263,14 +263,15 @@ where
                 }
             }
             KeyCode::Enter => {
-                let index = self.filtered_list.get(self.state.selected().unwrap_or(0));
-                return index.map(|&index| ListEvent::SelectedItem(self.inner_list[index].clone()));
+                if let Some(index) = self.filtered_list.get(self.state.selected().unwrap_or(0)) {
+                    return ListEvent::SelectedItem(self.inner_list[*index].clone());
+                }
             }
-            KeyCode::Char('q') => return Some(ListEvent::Quit),
-            _ => {}
+            KeyCode::Char('q') => return ListEvent::Quit,
+            _ => return ListEvent::Ignored,
         };
 
-        None
+        ListEvent::Consumed
     }
 
     pub fn remove(&mut self, index: usize) {
@@ -318,5 +319,6 @@ where
 pub enum ListEvent<T> {
     SelectedItem(T),
     Quit,
-    StayInList,
+    Consumed,
+    Ignored,
 }

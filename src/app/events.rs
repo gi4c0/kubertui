@@ -32,8 +32,14 @@ pub enum AppEvent {
     ShowExplorer(ExplorerKind),
     Quit,
     LoadNamespaces(Vec<String>),
-    ShowPods { pods: Vec<Pod>, namespace: String },
-    LoadLogs { namespace: String, pod_name: String },
+    ShowPods {
+        pods: Vec<Pod>,
+        namespace: String,
+    },
+    LoadLogs {
+        namespace: String,
+        pod_name: String,
+    },
     LogsLoaded {
         namespace: String,
         pod_name: String,
@@ -41,8 +47,15 @@ pub enum AppEvent {
         logs: Option<Vec<String>>,
     },
     ClustersLoaded(Vec<String>),
-    PodsUpdated { namespace: String, pods: Vec<Pod> },
-    LogsReloaded { pod_name: String, logs: Vec<String> },
+    PodsUpdated {
+        namespace: String,
+        pods: Vec<Pod>,
+    },
+    ReloadLogs,
+    LogsReloaded {
+        pod_name: String,
+        logs: Vec<String>,
+    },
     ShowNotification(Notification),
     OpenModal(Modal),
 }
