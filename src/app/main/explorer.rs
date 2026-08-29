@@ -27,7 +27,6 @@ pub enum ExplorerKind {
 
 #[derive(Debug, Clone)]
 pub struct Explorer {
-    event_sender: EventSender,
     kind: ExplorerKind,
     clusters: ClustersList,
     namespaces: NamespacesList,
@@ -37,7 +36,6 @@ pub struct Explorer {
 impl Explorer {
     pub fn new(event_sender: EventSender) -> Self {
         Self {
-            event_sender: event_sender.clone(),
             kind: ExplorerKind::Clusters,
             clusters: ClustersList::new(event_sender.clone()),
             namespaces: NamespacesList::new(event_sender.clone()),
@@ -97,7 +95,6 @@ impl Explorer {
             kind: value.kind,
             clusters: ClustersList::from_cache(value.clusters, event_sender.clone()),
             namespaces: NamespacesList::from_cache(value.namespaces, event_sender.clone()),
-            event_sender: event_sender.clone(),
         }
     }
 }

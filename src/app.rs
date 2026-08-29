@@ -134,13 +134,15 @@ impl App {
             AppEvent::ShowPods { pods, namespace } => {
                 // TODO: Implement recency
                 // self.side_bar.root_space.add_to_recent(namespace.clone());
-                self.main_window.show_pods(namespace, pods);
+                self.main_window.show_pods(namespace.clone(), pods);
                 self.update_active_window(MainWindowKind::Explorer, Some(ExplorerKind::Pods));
+                self.header.set_namespace(namespace);
             }
 
-            AppEvent::LoadNamespaces(namespaces) => {
+            AppEvent::NamespacesLoaded(cluster, namespaces) => {
                 self.main_window.show_namespaces(namespaces);
                 self.update_active_window(MainWindowKind::Explorer, Some(ExplorerKind::Namespaces));
+                self.header.set_cluster(cluster);
             }
 
             AppEvent::LoadLogs {

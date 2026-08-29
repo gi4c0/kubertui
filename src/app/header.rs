@@ -10,10 +10,27 @@ use strum::VariantArray;
 
 use crate::app::{MainWindowKind, common::build_block, main::explorer::ExplorerKind};
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct HeaderExplorerData {
+    cluster: Option<String>,
+    namespace: Option<String>,
+}
+
+impl HeaderExplorerData {
+    fn breadcrumb(&self) -> String {
+        match (&self.cluster, &self.namespace) {
+            (Some(cluster), Some(namespace)) => format!("{cluster} -> {namespace} -> Pods"),
+            (Some(cluster), None) => format!("{cluster} -> Namespaces"),
+            _ => "Clusters".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Header {
     active: MainWindowKind,
     explorer_kind: ExplorerKind,
+    explorer_data: HeaderExplorerData,
 }
 
 impl Header {
@@ -21,6 +38,7 @@ impl Header {
         Self {
             active: MainWindowKind::Explorer,
             explorer_kind: ExplorerKind::Clusters,
+            explorer_data: HeaderExplorerData::default(),
         }
     }
 
@@ -28,8 +46,22 @@ impl Header {
         self.active = new_active;
     }
 
+    pub fn set_cluster(&mut self, cluster: String) {
+        self.explorer_data.cluster = Some(cluster);
+    }
+
+    pub fn set_namespace(&mut self, namespace: String) {
+        self.explorer_data.namespace = Some(namespace);
+    }
+
     pub fn set_explorer_kind(&mut self, explorer_kind: ExplorerKind) {
         self.explorer_kind = explorer_kind;
+
+        match self.explorer_kind {
+            ExplorerKind::Clusters => self.explorer_data = HeaderExplorerData::default(),
+            ExplorerKind::Namespaces => self.explorer_data.namespace = None,
+            _ => {}
+        };
     }
 
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
@@ -66,14 +98,10 @@ impl Header {
         frame.render_widget(block, area);
     }
 
-    fn get_tab_text<'a>(&self, tab: &'a MainWindowKind) -> &'a str {
+    fn get_tab_text(&self, tab: &MainWindowKind) -> String {
         match tab {
-            MainWindowKind::Explorer => match self.explorer_kind {
-                ExplorerKind::Clusters => "Clusters",
-                ExplorerKind::Namespaces => "Clusters -> Namespaces",
-                ExplorerKind::Pods => "Clusters -> Namespaces -> Pods",
-            },
-            _ => tab.as_ref(),
+            MainWindowKind::Explorer => self.explorer_data.breadcrumb(),
+            _ => tab.as_ref().to_string(),
         }
     }
 }

@@ -105,8 +105,7 @@ impl ClustersList {
         };
 
         spinner.stop();
-
-        event_sender.send(AppEvent::LoadNamespaces(namespaces));
+        event_sender.send(AppEvent::NamespacesLoaded(cluster_name, namespaces));
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {

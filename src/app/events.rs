@@ -31,7 +31,7 @@ pub enum AppEvent {
     FocusPrev,
     ShowExplorer(ExplorerKind),
     Quit,
-    LoadNamespaces(Vec<String>),
+    NamespacesLoaded(String, Vec<String>),
     ShowPods {
         pods: Vec<Pod>,
         namespace: String,
