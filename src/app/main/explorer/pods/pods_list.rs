@@ -1,53 +1,20 @@
 pub mod delete_pod_alert;
 pub mod port_forward_popup;
+pub mod utils;
 
-use ratatui::{
-    Frame,
-    crossterm::event::{KeyCode, KeyEvent},
-    layout::{Constraint, Direction, Layout, Rect},
-    widgets::{Cell, Paragraph, Row, Table, TableState},
-};
+mod draw;
+mod keys;
+
+use ratatui::widgets::TableState;
 
 use crate::{
     app::{
         cache::{PodsListCache, StateCache},
-        common::{HelpMenuEnum, Spinner, build_block, get_highlight_style},
-        events::{AppEvent, EventSender, KeyEventResult},
-        main::explorer::{
-            ExplorerKind,
-            pods::pods_list::{
-                delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
-            },
-        },
-        modal::Modal,
-        notification::Notification,
+        common::{Filter, Spinner},
+        events::EventSender,
     },
-    kubectl::{
-        self,
-        pods::{KnownPodStatus, Pod, PodStatus, get_pods_list},
-    },
+    kubectl::pods::Pod,
 };
-
-#[derive(Debug, Clone)]
-struct PodWithSpinner {
-    pod: Pod,
-    spinner: Option<Spinner>,
-}
-
-impl From<Pod> for PodWithSpinner {
-    fn from(value: Pod) -> Self {
-        Self {
-            pod: value,
-            spinner: None,
-        }
-    }
-}
-
-impl From<PodWithSpinner> for Pod {
-    fn from(value: PodWithSpinner) -> Self {
-        Self { ..value.pod }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct PodsList {
@@ -55,8 +22,7 @@ pub struct PodsList {
     filtered_list: Vec<usize>,
     event_sender: EventSender,
     state: TableState,
-    filter: String,
-    is_filter_mod: bool,
+    filter: Filter,
     longest_name: u16,
     title: String,
     namespace: String,
@@ -64,10 +30,12 @@ pub struct PodsList {
 
 impl From<PodsList> for PodsListCache {
     fn from(value: PodsList) -> Self {
+        let (filter, is_filter_mod) = value.filter.into_parts();
+
         Self {
-            filter: value.filter,
+            filter,
             filtered_list: value.filtered_list,
-            is_filter_mod: value.is_filter_mod,
+            is_filter_mod,
             original_list: value.original_list.into_iter().map(Into::into).collect(),
             longest_name: value.longest_name,
             namespace: value.namespace,
@@ -85,10 +53,9 @@ impl PodsList {
         state.select(value.state.selected);
 
         Self {
-            filter: value.filter,
+            filter: Filter::from_parts(value.filter, value.is_filter_mod),
             event_sender,
             filtered_list: value.filtered_list,
-            is_filter_mod: value.is_filter_mod,
             original_list: value.original_list.into_iter().map(Into::into).collect(),
             longest_name: value.longest_name,
             title: value.title,
@@ -109,8 +76,7 @@ impl PodsList {
             original_list: Vec::new(),
             event_sender,
             state,
-            filter: String::new(),
-            is_filter_mod: false,
+            filter: Filter::default(),
         };
 
         list.update_pods(pods);
@@ -128,153 +94,6 @@ impl PodsList {
         self.filtered_list = pods.iter().enumerate().map(|(index, _)| index).collect();
         self.original_list = pods.into_iter().map(Into::into).collect();
         self.state.select(Some(0));
-    }
-
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
-        let header = ["Name", "Containers"]
-            .into_iter()
-            .map(Cell::from)
-            .collect::<Row>();
-
-        let rows: Vec<Row> = self
-            .filtered_list
-            .iter()
-            .map(|index| {
-                let item = &self.original_list[*index];
-
-                let maybe_spinner = item
-                    .spinner
-                    .as_ref()
-                    .and_then(|spinner| spinner.get_spin_state())
-                    .unwrap_or(" ");
-
-                let pod_name = format!("{maybe_spinner} {}", item.pod.name.as_str());
-
-                Row::new([
-                    pod_name.into(),
-                    get_status(&item.pod.container_statuses, &item.pod.reason),
-                ])
-            })
-            .collect();
-
-        let block = build_block("Select pod", false);
-
-        let table = Table::new(
-            rows,
-            [
-                Constraint::Length(self.longest_name + 3),
-                Constraint::Min(5),
-            ],
-        )
-        .header(header)
-        .block(block)
-        .row_highlight_style(get_highlight_style());
-
-        if self.is_filter_mod || !self.filter.is_empty() {
-            let layouts = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints(vec![Constraint::Length(3), Constraint::Min(1)])
-                .split(area);
-
-            let block = build_block("Filter", self.is_filter_mod);
-            let filter_widget = Paragraph::new(self.filter.as_str()).block(block);
-
-            frame.render_widget(filter_widget, layouts[0]);
-            frame.render_stateful_widget(table, layouts[1], &mut self.state);
-        } else {
-            frame.render_stateful_widget(table, area, &mut self.state);
-        }
-    }
-
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
-        if self.is_filter_mod {
-            match key.code {
-                KeyCode::Enter => {
-                    self.is_filter_mod = false;
-                    self.state.select(Some(0));
-                }
-                KeyCode::Esc => {
-                    self.filter.clear();
-                    self.is_filter_mod = false;
-                    self.update_filtered_list();
-                    self.state.select(Some(0));
-                }
-                KeyCode::Backspace => {
-                    self.filter.pop();
-                    self.update_filtered_list();
-                }
-                KeyCode::Char(ch) => {
-                    self.filter.push(ch);
-                    self.update_filtered_list();
-                }
-                _ => {}
-            };
-
-            return KeyEventResult::Consumed;
-        }
-
-        match key.code {
-            KeyCode::Esc => {
-                self.event_sender
-                    .send(AppEvent::ShowExplorer(ExplorerKind::Namespaces));
-            }
-
-            KeyCode::Char('q') => {
-                self.event_sender.send(AppEvent::Quit);
-            }
-            KeyCode::Char('j') | KeyCode::Down => self.select_next(),
-            KeyCode::Char('k') | KeyCode::Up => self.select_prev(),
-            KeyCode::Char('d') => {
-                if let Some(pod_name) = self.get_selected_pod_name() {
-                    self.event_sender.send(AppEvent::OpenModal(Modal::DeletePod(
-                        DeletePodAlert::new(self.namespace.clone(), pod_name.to_owned()),
-                    )));
-                }
-            }
-            KeyCode::Char('G') => {
-                if !self.filtered_list.is_empty() {
-                    self.state.select(Some(self.filtered_list.len() - 1));
-                }
-            }
-            KeyCode::Char('g') => {
-                if !self.filtered_list.is_empty() {
-                    self.state.select(Some(0));
-                }
-            }
-            KeyCode::Char('/') => self.is_filter_mod = true,
-            KeyCode::Char('p') => {
-                let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                let pod = &self.original_list[index].pod;
-
-                self.event_sender
-                    .send(AppEvent::OpenModal(Modal::PortForward(
-                        PortForwardPopup::new(
-                            self.namespace.clone(),
-                            pod.name.clone(),
-                            pod.containers.clone(),
-                        ),
-                    )));
-            }
-
-            KeyCode::Char('?') => self
-                .event_sender
-                .send(AppEvent::OpenModal(Modal::help(HelpMenuEnum::Pods))),
-
-            KeyCode::Char('L') => {
-                let index = self.filtered_list[self.state.selected().unwrap_or(0)];
-                let pod_container = &mut self.original_list[index];
-
-                pod_container.spinner = Some(Spinner::new());
-
-                self.event_sender.send(AppEvent::LoadLogs {
-                    namespace: self.namespace.clone(),
-                    pod_name: pod_container.pod.name.clone(),
-                });
-            }
-            _ => return KeyEventResult::Ignored,
-        };
-
-        KeyEventResult::Consumed
     }
 
     /// Stops by pod name, not by selection: the selection may have moved while
@@ -295,15 +114,17 @@ impl PodsList {
         pod_container.spinner = None;
     }
 
-    fn get_selected_pod_name(&self) -> Option<&str> {
+    /// Index into `original_list` of the selected row, if any. Safe when the
+    /// filtered list is empty or the selection is out of range.
+    fn selected_index(&self) -> Option<usize> {
         let selected = self.state.selected()?;
+        self.filtered_list.get(selected).copied()
+    }
 
-        let pod_name = self.original_list[self.filtered_list[selected]]
-            .pod
-            .name
-            .as_str();
+    fn get_selected_pod_name(&self) -> Option<&str> {
+        let index = self.selected_index()?;
 
-        Some(pod_name)
+        Some(self.original_list[index].pod.name.as_str())
     }
 
     pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
@@ -317,12 +138,9 @@ impl PodsList {
 
     fn update_filtered_list(&mut self) {
         self.filtered_list = self
-            .original_list
-            .iter()
-            .enumerate()
-            .filter(|(_, item)| item.pod.name.contains(self.filter.as_str()))
-            .map(|(index, _)| index)
-            .collect();
+            .filter
+            .apply(self.original_list.iter().map(|item| item.pod.name.as_str()));
+        self.state.select(Some(0));
     }
 
     fn select_next(&mut self) {
@@ -364,67 +182,23 @@ impl PodsList {
     }
 }
 
-pub fn delete_pod(namespace: String, pod_name: String, event_sender: EventSender) {
-    tokio::spawn(async move {
-        if let Err(err) = kubectl::delete_pod(&namespace, &pod_name).await {
-            event_sender.send(AppEvent::ShowNotification(Notification::error(err)));
-        }
-
-        match get_pods_list(namespace.as_str()).await {
-            Ok(pods) => event_sender.send(AppEvent::PodsUpdated { namespace, pods }),
-            Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::error(err))),
-        }
-    });
+#[derive(Debug, Clone)]
+struct PodWithSpinner {
+    pod: Pod,
+    spinner: Option<Spinner>,
 }
 
-fn get_status<'a>(statuses: &'a [PodStatus], reason: &'a Option<String>) -> Cell<'a> {
-    if statuses.len() <= 5 {
-        let statuses: Vec<String> = statuses
-            .iter()
-            .map(|status| match status {
-                PodStatus::Unknown(status) => "❓".into(),
-
-                PodStatus::Known(known_status) => match known_status {
-                    KnownPodStatus::Running { started_at: _ } => "💚".into(),
-                    KnownPodStatus::Terminated {
-                        container_id: _,
-                        exit_code: _,
-                        finished_at: _,
-                        reason: _,
-                        started_at: _,
-                        message: _,
-                    } => "💔".into(),
-                    KnownPodStatus::Waiting {
-                        reason: _,
-                        message: _,
-                    } => "💤".into(),
-                },
-            })
-            .collect();
-
-        if statuses.is_empty()
-            && let Some(reason) = reason
-        {
-            let icon = match reason.as_str() {
-                "Evicted" => "❌".to_string(),
-                another => format!("❌ ({another})").to_string(),
-            };
-
-            return Cell::from(icon);
+impl From<Pod> for PodWithSpinner {
+    fn from(value: Pod) -> Self {
+        Self {
+            pod: value,
+            spinner: None,
         }
-
-        return Cell::from(statuses.join(" "));
     }
+}
 
-    let running = statuses
-        .iter()
-        .filter(|status| {
-            matches!(
-                status,
-                PodStatus::Known(KnownPodStatus::Running { started_at: _ })
-            )
-        })
-        .count();
-
-    Cell::from(format!("{}/{}", running, statuses.len()))
+impl From<PodWithSpinner> for Pod {
+    fn from(value: PodWithSpinner) -> Self {
+        Self { ..value.pod }
+    }
 }

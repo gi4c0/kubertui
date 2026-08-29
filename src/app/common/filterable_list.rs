@@ -7,13 +7,11 @@ use ratatui::{
     widgets::{Clear, List, ListItem, ListState, ScrollbarState},
 };
 
-use crate::app::{
-    cache::{FilterableListCache, StateCache},
-    common::{FOCUS_COLOR, build_block},
-};
+use crate::app::common::{FOCUS_COLOR, Filter, FilterEvent, build_block, traits::ListItemTrait};
 
+pub mod cache;
 pub mod scroll;
-pub mod title;
+pub mod traits;
 
 #[derive(Default, Debug, Clone)]
 pub struct FilterableList<T> {
@@ -23,79 +21,8 @@ pub struct FilterableList<T> {
     is_filterable: bool,
     scrollbar_state: ScrollbarState,
     filtered_list: Vec<usize>,
-    filter: String,
-    is_filter_mod: bool,
+    filter: Filter,
     show_scrollable: bool,
-}
-
-pub trait ListItemTrait {
-    fn as_ref(&self) -> &str;
-
-    fn get_style(&self) -> Option<Style> {
-        None
-    }
-
-    fn spinner(&self) -> Option<String> {
-        None
-    }
-}
-
-impl ListItemTrait for String {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-
-    fn get_style(&self) -> Option<Style> {
-        None
-    }
-}
-
-impl<Item, ItemCache> From<FilterableList<Item>> for FilterableListCache<ItemCache>
-where
-    Item: Into<ItemCache>,
-{
-    fn from(value: FilterableList<Item>) -> Self {
-        Self {
-            filter: value.filter,
-            filtered_list: value.filtered_list,
-            is_filter_mod: value.is_filter_mod,
-            show_scrollable: value.show_scrollable,
-            list: value
-                .inner_list
-                .into_iter()
-                .map(|item| item.into())
-                .collect(),
-
-            state: StateCache {
-                selected: value.state.selected(),
-            },
-            is_filterable: value.is_filterable,
-            title: value.title,
-        }
-    }
-}
-
-impl<ItemCache, Item> From<FilterableListCache<ItemCache>> for FilterableList<Item>
-where
-    ItemCache: Into<Item>,
-{
-    fn from(value: FilterableListCache<ItemCache>) -> Self {
-        let mut state = ListState::default();
-        state.select(value.state.selected);
-
-        Self {
-            scrollbar_state: ScrollbarState::new(value.filtered_list.len())
-                .position(state.selected().unwrap_or(0)),
-            filter: value.filter,
-            filtered_list: value.filtered_list,
-            show_scrollable: value.show_scrollable,
-            is_filter_mod: value.is_filter_mod,
-            inner_list: value.list.into_iter().map(|item| item.into()).collect(),
-            state,
-            is_filterable: value.is_filterable,
-            title: value.title,
-        }
-    }
 }
 
 impl<Item> FilterableList<Item>
@@ -127,10 +54,9 @@ where
 
         Self {
             scrollbar_state: ScrollbarState::new(0),
-            filter: String::new(),
+            filter: Filter::default(),
             filtered_list: vec![],
             show_scrollable: false,
-            is_filter_mod: false,
             inner_list: vec![],
             is_filterable: false,
             title: list_name,
@@ -139,7 +65,7 @@ where
     }
 
     fn reset_filter(&mut self) {
-        self.filter = String::new();
+        self.filter.clear();
         self.update_filtered_list();
     }
 
@@ -189,9 +115,9 @@ where
 
         let mut block = build_block(title, false);
 
-        if self.is_filter_mod || !self.filter.is_empty() {
+        if self.filter.is_visible() {
             block = block
-                .title_bottom(format!(" Filter: {} ", self.filter.as_str()).set_style(FOCUS_COLOR));
+                .title_bottom(format!(" Filter: {} ", self.filter.text()).set_style(FOCUS_COLOR));
         }
 
         let list = List::new(list_items)
@@ -207,36 +133,22 @@ where
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> ListEvent<Item> {
-        if self.is_filter_mod {
-            match key.code {
-                KeyCode::Enter => {
-                    self.is_filter_mod = false;
+        if self.filter.is_active() {
+            return match self.filter.handle_key(key) {
+                FilterEvent::Ignored => ListEvent::Ignored,
+                FilterEvent::Changed | FilterEvent::Closed { changed: true } => {
+                    self.update_filtered_list();
+                    ListEvent::Consumed
+                }
+                FilterEvent::Closed { changed: false } => {
                     self.state.select(Some(0));
+                    ListEvent::Consumed
                 }
-                KeyCode::Esc => {
-                    self.filter.clear();
-                    self.is_filter_mod = false;
-                    self.update_filtered_list();
-                    self.state.select(Some(0));
-                }
-                KeyCode::Backspace => {
-                    self.filter.pop();
-                    self.update_filtered_list();
-                }
-                KeyCode::Char(ch) => {
-                    self.filter.push(ch);
-                    self.update_filtered_list();
-                }
-                _ => return ListEvent::Ignored,
             };
-
-            return ListEvent::Consumed;
         }
 
         match key.code {
-            KeyCode::Char('/') if self.is_filterable => {
-                self.is_filter_mod = true;
-            }
+            KeyCode::Char('/') if self.is_filterable => self.filter.activate(),
 
             KeyCode::Char('j') | KeyCode::Down => scroll::select_next(
                 &self.filtered_list,
@@ -296,18 +208,8 @@ where
 
     fn update_filtered_list(&mut self) {
         self.filtered_list = self
-            .inner_list
-            .iter()
-            .enumerate()
-            .filter(|(_, item)| {
-                if self.filter.trim().is_empty() {
-                    return true;
-                }
-
-                item.as_ref().contains(&self.filter)
-            })
-            .map(|(index, _)| index)
-            .collect();
+            .filter
+            .apply(self.inner_list.iter().map(|item| item.as_ref()));
 
         self.state.select(Some(0));
         self.scrollbar_state = ScrollbarState::new(self.filtered_list.len());

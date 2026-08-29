@@ -8,7 +8,9 @@ use ratatui::{
 use crate::{
     app::{
         cache::{ClusterCache, ClustersListCache},
-        common::{FOCUS_COLOR, FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
+        common::{
+            FOCUS_COLOR, FilterableList, HelpMenuEnum, ListEvent, Spinner, traits::ListItemTrait,
+        },
         events::{AppEvent, EventSender, KeyEventResult},
         modal::Modal,
         notification::Notification,

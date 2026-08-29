@@ -1,13 +1,10 @@
-use std::vec;
-
 use crossterm::event::KeyEvent;
-use futures::stream::Filter;
 use ratatui::{Frame, layout::Rect};
 use serde_json::Value;
 
 use crate::{
     app::{
-        common::{FilterableList, ListEvent, ListItemTrait},
+        common::{FilterableList, ListEvent, traits::ListItemTrait},
         events::{AppEvent, EventSender, KeyEventResult},
         main::{NamespacePod, logs::pod_logs::PodLogs},
         notification::Notification,

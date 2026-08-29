@@ -16,7 +16,7 @@ use tokio::time::sleep;
 use crate::{
     app::{
         cache::{PortForwardCache, PortForwardsListCache},
-        common::{FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
+        common::{FilterableList, HelpMenuEnum, ListEvent, Spinner, traits::ListItemTrait},
         events::{AppEvent, EventSender, KeyEventResult},
         modal::Modal,
         notification::{LogLevel, Notification},

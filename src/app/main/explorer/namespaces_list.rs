@@ -1,7 +1,7 @@
 use crate::{
     app::{
         cache::{NamespaceItemCache, NamespacesListCache},
-        common::{FilterableList, HelpMenuEnum, ListEvent, ListItemTrait, Spinner},
+        common::{FilterableList, HelpMenuEnum, ListEvent, Spinner, traits::ListItemTrait},
         events::{AppEvent, EventSender, KeyEventResult},
         main::explorer::ExplorerKind,
         modal::Modal,

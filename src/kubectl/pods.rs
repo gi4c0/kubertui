@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{app::common::ListItemTrait, error::AppResult, kubectl::run_kubectl_command_and_parse};
+use crate::{
+    app::common::traits::ListItemTrait, error::AppResult, kubectl::run_kubectl_command_and_parse,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pod {

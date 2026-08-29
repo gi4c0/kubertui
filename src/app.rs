@@ -23,7 +23,7 @@ use crate::{
         header::Header,
         main::{
             MainWindow,
-            explorer::{ExplorerKind, pods::pods_list},
+            explorer::{ExplorerKind, pods::pods_list::utils::delete_pod},
         },
         modal::{Modal, ModalAction, ModalOutcome},
         notification::NotificationWidget,
@@ -221,7 +221,7 @@ impl App {
             ModalAction::DeletePod {
                 namespace,
                 pod_name,
-            } => pods_list::delete_pod(namespace, pod_name, self.event_handler.sender()),
+            } => delete_pod(namespace, pod_name, self.event_handler.sender()),
 
             ModalAction::PortForward {
                 namespace,
