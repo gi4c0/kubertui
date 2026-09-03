@@ -92,6 +92,12 @@ impl Logs {
             LogsEvent::Reload => self.reload_logs(),
 
             LogsEvent::Reloaded { pod_name, logs } => self.logs_reloaded(pod_name, logs),
+
+            LogsEvent::CloseLogItem => {
+                if let Some(pod_logs) = self.pod_logs.as_mut() {
+                    pod_logs.close_selected_log();
+                }
+            }
         }
     }
 

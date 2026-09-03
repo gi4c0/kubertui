@@ -6,23 +6,28 @@ use ratatui::{
 };
 use serde_json::Value;
 
-use crate::app::common::build_block;
+use crate::app::{
+    common::build_block,
+    events::{EventSender, KeyEventResult, LogsEvent},
+};
 
 #[derive(Debug, Clone)]
 pub struct LogItem {
     text: String,
     pod_name: String,
     scroll: u16,
+    event_sender: EventSender,
 }
 
 impl LogItem {
-    pub fn new(log_item: String, pod_name: String) -> Self {
+    pub fn new(event_sender: EventSender, log_item: String, pod_name: String) -> Self {
         let text = Self::format_log(log_item);
 
         Self {
             text,
             pod_name,
             scroll: 0,
+            event_sender,
         }
     }
 
@@ -56,19 +61,17 @@ impl LogItem {
         log_item
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+    pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
         match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => return true,
             KeyCode::Char('j') | KeyCode::Down => self.scroll += 1,
-            KeyCode::Char('k') | KeyCode::Up => {
-                if self.scroll > 0 {
-                    self.scroll -= 1;
-                }
+            KeyCode::Char('k') | KeyCode::Up if self.scroll > 0 => {
+                self.scroll -= 1;
             }
-            _ => {}
-        }
+            KeyCode::Esc => self.event_sender.send(LogsEvent::CloseLogItem),
+            _ => return KeyEventResult::Ignored,
+        };
 
-        false
+        KeyEventResult::Consumed
     }
 
     fn find_and_format_json(value: &Value) -> Option<String> {

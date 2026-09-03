@@ -1,6 +1,9 @@
 use ratatui::widgets::{ListState, ScrollbarState};
 
-use crate::app::{events::EventSender, main_window::NamespacePod};
+use crate::app::{
+    events::EventSender,
+    main_window::{NamespacePod, logs::log_item::LogItem},
+};
 
 mod draw;
 pub mod keys;
@@ -18,6 +21,7 @@ pub struct PodLogs {
     add_new_filter_mod: bool,
     edit_filters_mod: bool,
     active_filter_index: usize,
+    selected_log: Option<LogItem>,
 }
 
 impl PodLogs {
@@ -39,7 +43,12 @@ impl PodLogs {
             pod_name,
             state: ListState::default(),
             logs,
+            selected_log: None,
         }
+    }
+
+    pub fn close_selected_log(&mut self) {
+        self.selected_log = None;
     }
 
     pub fn get_namespace_pod(&self) -> NamespacePod {

@@ -17,7 +17,6 @@ pub enum Modal {
     Notification(NotificationWidget),
     DeletePod(DeletePodAlert),
     PortForward(PortForwardPopup),
-    LogDetail(LogItem),
 }
 
 /// What the app should do after a modal handled a key.
@@ -46,13 +45,12 @@ impl Modal {
         Modal::Help(HelpMenu::new(kind))
     }
 
-    pub fn draw(&mut self, main_area: Rect, frame: &mut Frame) {
+    pub fn draw(&mut self, frame: &mut Frame) {
         match self {
             Modal::Help(menu) => menu.draw(frame),
             Modal::Notification(widget) => widget.draw(frame),
             Modal::DeletePod(alert) => alert.draw(frame),
             Modal::PortForward(popup) => popup.draw(frame),
-            Modal::LogDetail(item) => item.draw(main_area, frame),
         }
     }
 
@@ -60,7 +58,6 @@ impl Modal {
         match self {
             Modal::Help(menu) => close_if(menu.handle_key_event(key)),
             Modal::Notification(widget) => close_if(widget.handle_key_event(key)),
-            Modal::LogDetail(item) => close_if(item.handle_key_event(key)),
 
             Modal::DeletePod(alert) => match alert.handle_key_event(key) {
                 Some(DeletePodAction::DeletePod) => {

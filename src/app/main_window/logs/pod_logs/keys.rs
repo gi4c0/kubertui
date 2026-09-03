@@ -12,6 +12,10 @@ use crate::app::{
 
 impl PodLogs {
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
+        if let Some(selected_log_item) = self.selected_log.as_mut() {
+            return selected_log_item.handle_key_event(key);
+        }
+
         if self.edit_filters_mod {
             return self.edit_filter_mod_key_handler(key);
         }
@@ -154,11 +158,11 @@ impl PodLogs {
                     let index = &self.filtered_list[selected];
                     let log = &self.logs[*index];
 
-                    self.event_sender
-                        .send(AppEvent::OpenModal(Modal::LogDetail(LogItem::new(
-                            log.clone(),
-                            self.pod_name.clone(),
-                        ))));
+                    self.selected_log = Some(LogItem::new(
+                        self.event_sender.clone(),
+                        log.clone(),
+                        self.pod_name.clone(),
+                    ));
                 }
             }
             _ => return KeyEventResult::Ignored,

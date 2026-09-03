@@ -67,6 +67,7 @@ pub enum LogsEvent {
         pod_name: String,
         logs: Vec<String>,
     },
+    CloseLogItem,
 }
 
 impl From<ExplorerEvent> for AppEvent {

@@ -11,6 +11,11 @@ use crate::app::common::{FOCUS_COLOR, build_block, scroll};
 
 impl PodLogs {
     pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+        if let Some(selected_log_item) = self.selected_log.as_mut() {
+            selected_log_item.draw(area, frame);
+            return;
+        }
+
         let list_items: Vec<ListItem> = self
             .filtered_list
             .iter()

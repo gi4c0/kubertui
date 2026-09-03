@@ -75,7 +75,7 @@ impl App {
                 }
             }
 
-            LogsEvent::Load { .. } | LogsEvent::Reload | LogsEvent::Reloaded { .. } => {}
+            _ => {}
         }
     }
 }

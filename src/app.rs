@@ -111,7 +111,7 @@ impl App {
         self.main_window.draw(layouts[1], frame);
 
         for modal in &mut self.modals {
-            modal.draw(layouts[1], frame);
+            modal.draw(frame);
         }
     }
 
