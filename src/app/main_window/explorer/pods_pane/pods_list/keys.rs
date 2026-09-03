@@ -3,9 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::{
     common::{FilterEvent, HelpMenuEnum, Spinner},
     events::{AppEvent, KeyEventResult},
-    main::explorer::{
+    main_window::explorer::{
         ExplorerKind,
-        pods::pods_list::{
+        pods_pane::pods_list::{
             PodsList, delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
         },
     },

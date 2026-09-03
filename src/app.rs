@@ -3,7 +3,7 @@ pub mod common;
 mod event_handler;
 mod events;
 mod header;
-pub mod main;
+pub mod main_window;
 pub mod modal;
 mod notification;
 
@@ -22,9 +22,9 @@ use crate::{
         cache::AppCache,
         events::EventHandler,
         header::Header,
-        main::{
+        main_window::{
             MainWindow,
-            explorer::{ExplorerKind, pods::pods_list::utils::delete_pod},
+            explorer::{ExplorerKind, pods_pane::pods_list::utils::delete_pod},
         },
         modal::{Modal, ModalAction, ModalOutcome},
     },
@@ -114,7 +114,7 @@ impl App {
         self.main_window.draw(layouts[1], frame);
 
         for modal in &mut self.modals {
-            modal.draw(frame, layouts[1]);
+            modal.draw(layouts[1], frame);
         }
     }
 

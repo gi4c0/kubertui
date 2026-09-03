@@ -2,8 +2,8 @@ use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 
 use crate::app::{
     common::{HelpMenu, HelpMenuEnum},
-    main::{
-        explorer::pods::pods_list::{
+    main_window::{
+        explorer::pods_pane::pods_list::{
             delete_pod_alert::{DeletePodAction, DeletePodAlert},
             port_forward_popup::{PortForwardPopup, PortForwardPopupAction},
         },
@@ -46,7 +46,7 @@ impl Modal {
         Modal::Help(HelpMenu::new(kind))
     }
 
-    pub fn draw(&mut self, frame: &mut Frame, main_area: Rect) {
+    pub fn draw(&mut self, main_area: Rect, frame: &mut Frame) {
         match self {
             Modal::Help(menu) => menu.draw(frame),
             Modal::Notification(widget) => widget.draw(frame),

@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::app::{
     common::{build_block, get_highlight_style},
-    main::explorer::pods::pods_list::{PodsList, utils::get_status},
+    main_window::explorer::pods_pane::pods_list::{PodsList, utils::get_status},
 };
 
 impl PodsList {

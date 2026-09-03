@@ -2,7 +2,7 @@ use ratatui::crossterm::event::{Event, KeyEventKind};
 
 use crate::{
     app::{
-        App, MainWindowKind, cache, events::AppEvent, main::explorer::ExplorerKind, modal::Modal,
+        App, MainWindowKind, cache, events::AppEvent, main_window::explorer::ExplorerKind, modal::Modal,
         notification::NotificationWidget,
     },
     error::AppResult,

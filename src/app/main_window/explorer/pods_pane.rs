@@ -7,7 +7,7 @@ use crate::{
     app::{
         cache::PodsCache,
         events::{EventSender, KeyEventResult},
-        main::explorer::pods::pods_list::PodsList,
+        main_window::explorer::pods_pane::pods_list::PodsList,
     },
     kubectl::pods::Pod,
 };
@@ -21,13 +21,13 @@ pub enum PodsKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct Pods {
+pub struct PodsPane {
     pods_list: Option<PodsList>,
     kind: PodsKind,
     event_sender: EventSender,
 }
 
-impl Pods {
+impl PodsPane {
     pub fn new(event_sender: EventSender) -> Self {
         Self {
             pods_list: None,
@@ -92,8 +92,8 @@ impl Pods {
     }
 }
 
-impl From<Pods> for PodsCache {
-    fn from(value: Pods) -> Self {
+impl From<PodsPane> for PodsCache {
+    fn from(value: PodsPane) -> Self {
         Self {
             kind: value.kind,
             pods_list: value.pods_list.map(|item| item.into()),

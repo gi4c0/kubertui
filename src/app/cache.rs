@@ -9,7 +9,7 @@ use crate::{
     app::{
         App, MainWindowKind,
         header::Header,
-        main::explorer::{ExplorerKind, pods::PodsKind},
+        main_window::explorer::{ExplorerKind, pods_pane::PodsKind},
     },
     error::{AppError, AppResult},
     files::{CACHE_PATH, ensure_app_dir},

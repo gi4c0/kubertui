@@ -6,8 +6,8 @@ use crate::{
     app::{
         cache::ExplorerCache,
         events::{EventSender, KeyEventResult},
-        main::explorer::{
-            clusters_list::ClustersList, namespaces_list::NamespacesList, pods::Pods,
+        main_window::explorer::{
+            clusters_list::ClustersList, namespaces_list::NamespacesList, pods_pane::PodsPane,
         },
     },
     error::AppResult,
@@ -16,7 +16,7 @@ use crate::{
 
 pub mod clusters_list;
 pub mod namespaces_list;
-pub mod pods;
+pub mod pods_pane;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum ExplorerKind {
@@ -30,7 +30,7 @@ pub struct Explorer {
     kind: ExplorerKind,
     clusters: ClustersList,
     namespaces: NamespacesList,
-    pods: Pods,
+    pods: PodsPane,
 }
 
 impl Explorer {
@@ -39,7 +39,7 @@ impl Explorer {
             kind: ExplorerKind::Clusters,
             clusters: ClustersList::new(event_sender.clone()),
             namespaces: NamespacesList::new(event_sender.clone()),
-            pods: Pods::new(event_sender.clone()),
+            pods: PodsPane::new(event_sender.clone()),
         }
     }
 
@@ -91,7 +91,7 @@ impl Explorer {
 
     pub fn from_cache(value: ExplorerCache, event_sender: EventSender) -> Self {
         Self {
-            pods: Pods::from_cache(value.pods, event_sender.clone()),
+            pods: PodsPane::from_cache(value.pods, event_sender.clone()),
             kind: value.kind,
             clusters: ClustersList::from_cache(value.clusters, event_sender.clone()),
             namespaces: NamespacesList::from_cache(value.namespaces, event_sender.clone()),

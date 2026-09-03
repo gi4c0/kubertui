@@ -3,7 +3,7 @@ use crate::{
         cache::{NamespaceItemCache, NamespacesListCache},
         common::{FilterableList, HelpMenuEnum, ListEvent, Spinner, traits::ListItemTrait},
         events::{AppEvent, EventSender, KeyEventResult},
-        main::explorer::ExplorerKind,
+        main_window::explorer::ExplorerKind,
         modal::Modal,
         notification::Notification,
     },

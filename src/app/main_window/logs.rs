@@ -6,7 +6,7 @@ use crate::{
     app::{
         common::{FilterableList, ListEvent, traits::ListItemTrait},
         events::{AppEvent, EventSender, KeyEventResult},
-        main::{NamespacePod, logs::pod_logs::PodLogs},
+        main_window::{NamespacePod, logs::pod_logs::PodLogs},
         notification::Notification,
     },
     error::AppResult,
@@ -111,8 +111,6 @@ impl Logs {
         }
     }
 
-    /// Loads the logs off the event loop so the UI keeps redrawing while
-    /// `kubectl` runs. Completion arrives as [`AppEvent::LogsLoaded`].
     pub fn load_logs(namespace: String, pod_name: String, event_sender: EventSender) {
         tokio::spawn(async move {
             let logs = match Self::load_prettified_logs(&namespace, &pod_name).await {
@@ -134,7 +132,7 @@ impl Logs {
     pub fn add_pod_logs(&mut self, namespace: String, pod_name: String, logs: Vec<String>) {
         let recent_pod = RecentPod {
             logs,
-            title: format!("[{}] {}", &namespace, &pod_name),
+            title: format!("[{namespace}] {pod_name}"),
             namespace,
             pod_name,
         };

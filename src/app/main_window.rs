@@ -1,7 +1,7 @@
 use crate::app::common::handle_general_keys;
-use crate::app::main::explorer::{Explorer, ExplorerKind};
-use crate::app::main::port_forwards::PortForwardsList;
-use crate::app::{MainWindowKind, main::logs::Logs};
+use crate::app::main_window::explorer::{Explorer, ExplorerKind};
+use crate::app::main_window::port_forwards::PortForwardsList;
+use crate::app::{MainWindowKind, main_window::logs::Logs};
 use crate::error::AppResult;
 use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 

@@ -8,7 +8,7 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
-use crate::app::{MainWindowKind, common::build_block, main::explorer::ExplorerKind};
+use crate::app::{MainWindowKind, common::build_block, main_window::explorer::ExplorerKind};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct HeaderExplorerData {

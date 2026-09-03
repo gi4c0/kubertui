@@ -7,7 +7,10 @@ use ratatui::crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{MainWindowKind, main::explorer::ExplorerKind, modal::Modal, notification::Notification},
+    app::{
+        MainWindowKind, main_window::explorer::ExplorerKind, modal::Modal,
+        notification::Notification,
+    },
     error::{AppError, AppResult},
     kubectl::pods::Pod,
 };
