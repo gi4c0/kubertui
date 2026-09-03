@@ -1,16 +1,13 @@
 use crate::app::common::handle_general_keys;
-use crate::app::main_window::explorer::{Explorer, ExplorerKind};
+use crate::app::main_window::explorer::Explorer;
 use crate::app::main_window::port_forwards::PortForwardsList;
 use crate::app::{MainWindowKind, main_window::logs::Logs};
 use crate::error::AppResult;
 use ratatui::{Frame, crossterm::event::KeyEvent, layout::Rect};
 
-use crate::{
-    app::{
-        cache::MainWindowCache,
-        events::{EventSender, KeyEventResult},
-    },
-    kubectl::pods::Pod,
+use crate::app::{
+    cache::MainWindowCache,
+    events::{EventSender, ExplorerEvent, KeyEventResult, LogsEvent},
 };
 
 pub mod explorer;
@@ -52,10 +49,6 @@ impl MainWindow {
         }
     }
 
-    pub fn show_namespaces(&mut self, namespaces: Vec<String>) {
-        self.explorer.show_namespaces(namespaces);
-    }
-
     pub fn add_to_list_and_port_forward(
         &mut self,
         namespace: String,
@@ -67,36 +60,12 @@ impl MainWindow {
             .add_to_list_and_port_forward(namespace, pod_name, local_port, app_port);
     }
 
-    pub fn set_clusters(&mut self, clusters: Vec<String>) {
-        self.explorer.set_clusters(clusters);
+    pub fn handle_explorer_event(&mut self, event: ExplorerEvent) {
+        self.explorer.handle_event(event);
     }
 
-    pub fn reload_logs(&self) {
-        self.logs.reload_logs();
-    }
-
-    pub fn stop_pods_spinner(&mut self, pod_name: &str) {
-        self.explorer.stop_pods_spinner(pod_name);
-    }
-
-    pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
-        self.explorer.pods_updated(namespace, pods);
-    }
-
-    pub fn logs_reloaded(&mut self, pod_name: String, logs: Vec<String>) {
-        self.logs.logs_reloaded(pod_name, logs);
-    }
-
-    pub fn load_logs(&self, namespace: String, pod_name: String) {
-        Logs::load_logs(namespace, pod_name, self.event_sender.clone());
-    }
-
-    pub fn set_logs(&mut self, namespace: String, pod_name: String, logs: Vec<String>) {
-        self.logs.add_pod_logs(namespace, pod_name, logs);
-    }
-
-    pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
-        self.explorer.show_pods(namespace, pods);
+    pub fn handle_logs_event(&mut self, event: LogsEvent) {
+        self.logs.handle_event(event);
     }
 
     pub async fn initial_load(&mut self) -> AppResult<()> {
@@ -133,14 +102,7 @@ impl MainWindow {
         };
     }
 
-    pub fn set_active_window(
-        &mut self,
-        new_active_window: MainWindowKind,
-        explorer_kind: Option<ExplorerKind>,
-    ) {
-        self.kind = new_active_window;
-        if let Some(kind) = explorer_kind {
-            self.explorer.set_kind(kind);
-        }
+    pub fn set_kind(&mut self, kind: MainWindowKind) {
+        self.kind = kind;
     }
 }

@@ -5,13 +5,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         cache::ExplorerCache,
-        events::{EventSender, KeyEventResult},
+        events::{EventSender, ExplorerEvent, KeyEventResult},
         main_window::explorer::{
             clusters_list::ClustersList, namespaces_list::NamespacesList, pods_pane::PodsPane,
         },
     },
     error::AppResult,
-    kubectl::pods::Pod,
 };
 
 pub mod clusters_list;
@@ -51,30 +50,28 @@ impl Explorer {
         }
     }
 
-    pub fn stop_pods_spinner(&mut self, pod_name: &str) {
-        self.pods.stop_spinner(pod_name);
-    }
+    pub fn handle_event(&mut self, event: ExplorerEvent) {
+        match event {
+            ExplorerEvent::Show(kind) => self.kind = kind,
 
-    pub fn set_kind(&mut self, kind: ExplorerKind) {
-        self.kind = kind;
-    }
+            ExplorerEvent::ClustersLoaded(clusters) => self.clusters.set_clusters(clusters),
 
-    pub fn show_namespaces(&mut self, namespaces: Vec<String>) {
-        self.kind = ExplorerKind::Namespaces;
-        self.namespaces.set_namespaces(namespaces);
-    }
+            ExplorerEvent::NamespacesLoaded { namespaces, .. } => {
+                self.kind = ExplorerKind::Namespaces;
+                self.namespaces.set_namespaces(namespaces);
+            }
 
-    pub fn set_clusters(&mut self, clusters: Vec<String>) {
-        self.clusters.set_clusters(clusters);
-    }
+            ExplorerEvent::PodsLoaded { namespace, pods } => {
+                self.kind = ExplorerKind::Pods;
+                self.pods.show_pods(namespace, pods);
+            }
 
-    pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
-        self.pods.pods_updated(namespace, pods);
-    }
+            ExplorerEvent::PodsUpdated { namespace, pods } => {
+                self.pods.pods_updated(&namespace, pods);
+            }
 
-    pub fn show_pods(&mut self, namespace: String, pods: Vec<Pod>) {
-        self.kind = ExplorerKind::Pods;
-        self.pods.show_pods(namespace, pods);
+            ExplorerEvent::PodLogsFinished { pod_name } => self.pods.stop_spinner(&pod_name),
+        }
     }
 
     pub async fn initial_load(&mut self) -> AppResult<()> {

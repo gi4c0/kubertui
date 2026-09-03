@@ -5,7 +5,7 @@ use ratatui::{
 
 use crate::app::{
     common::{HelpMenuEnum, scroll},
-    events::{AppEvent, KeyEventResult},
+    events::{AppEvent, KeyEventResult, LogsEvent},
     main_window::logs::{log_item::LogItem, pod_logs::PodLogs},
     modal::Modal,
 };
@@ -123,7 +123,7 @@ impl PodLogs {
                 &mut self.scrollbar_state,
             ),
 
-            KeyCode::Char('r') => self.event_sender.send(AppEvent::ReloadLogs),
+            KeyCode::Char('r') => self.event_sender.send(LogsEvent::Reload),
 
             KeyCode::Char('k') | KeyCode::Up => scroll::select_prev(
                 &self.filtered_list,

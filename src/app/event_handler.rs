@@ -2,7 +2,9 @@ use ratatui::crossterm::event::{Event, KeyEventKind};
 
 use crate::{
     app::{
-        App, MainWindowKind, cache, events::AppEvent, main_window::explorer::ExplorerKind, modal::Modal,
+        App, MainWindowKind, cache,
+        events::{AppEvent, ExplorerEvent, LogsEvent},
+        modal::Modal,
         notification::NotificationWidget,
     },
     error::AppResult,
@@ -22,59 +24,6 @@ impl App {
                 self.exit = true;
                 cache::save_cache(self).await?;
             }
-            AppEvent::ShowPods { pods, namespace } => {
-                // TODO: Implement recency
-                // self.side_bar.root_space.add_to_recent(namespace.clone());
-                self.main_window.show_pods(namespace.clone(), pods);
-                self.update_active_window(MainWindowKind::Explorer, Some(ExplorerKind::Pods));
-                self.header.set_namespace(namespace);
-            }
-
-            AppEvent::NamespacesLoaded(cluster, namespaces) => {
-                self.main_window.show_namespaces(namespaces);
-                self.update_active_window(MainWindowKind::Explorer, Some(ExplorerKind::Namespaces));
-                self.header.set_cluster(cluster);
-            }
-
-            AppEvent::LoadLogs {
-                namespace,
-                pod_name,
-            } => {
-                // Stay in the pods list until the logs arrive so the spinner is
-                // visible; the window switches on `LogsLoaded`.
-                self.main_window.load_logs(namespace, pod_name);
-            }
-
-            AppEvent::ReloadLogs => self.main_window.reload_logs(),
-
-            AppEvent::ShowExplorer(kind) => {
-                self.update_active_window(MainWindowKind::Explorer, Some(kind));
-            }
-
-            AppEvent::ClustersLoaded(clusters) => {
-                self.main_window.set_clusters(clusters);
-            }
-
-            AppEvent::LogsLoaded {
-                namespace,
-                pod_name,
-                logs,
-            } => {
-                self.main_window.stop_pods_spinner(&pod_name);
-
-                if let Some(logs) = logs {
-                    self.main_window.set_logs(namespace, pod_name, logs);
-                    self.update_active_window(MainWindowKind::Logs, None);
-                }
-            }
-
-            AppEvent::PodsUpdated { namespace, pods } => {
-                self.main_window.pods_updated(&namespace, pods);
-            }
-
-            AppEvent::LogsReloaded { pod_name, logs } => {
-                self.main_window.logs_reloaded(pod_name, logs);
-            }
 
             AppEvent::ShowNotification(notification) => self
                 .modals
@@ -82,12 +31,51 @@ impl App {
 
             AppEvent::OpenModal(modal) => self.modals.push(modal),
 
-            AppEvent::Focus(active_window) => self.active_window = active_window,
+            AppEvent::FocusNext => self.set_active_window(self.next_focus()),
+            AppEvent::FocusPrev => self.set_active_window(self.prev_focus()),
 
-            AppEvent::FocusNext => self.update_active_window(self.next_focus(), None),
-            AppEvent::FocusPrev => self.update_active_window(self.prev_focus(), None),
+            AppEvent::Explorer(event) => {
+                self.on_explorer_event(&event);
+                self.main_window.handle_explorer_event(event);
+            }
+
+            AppEvent::Logs(event) => {
+                self.on_logs_event(&event);
+                self.main_window.handle_logs_event(event);
+            }
         }
 
         Ok(())
+    }
+
+    fn on_explorer_event(&mut self, event: &ExplorerEvent) {
+        self.header.handle_explorer_event(event);
+
+        match event {
+            ExplorerEvent::Show(_)
+            | ExplorerEvent::NamespacesLoaded { .. }
+            | ExplorerEvent::PodsLoaded { .. } => self.set_active_window(MainWindowKind::Explorer),
+
+            ExplorerEvent::ClustersLoaded(_)
+            | ExplorerEvent::PodsUpdated { .. }
+            | ExplorerEvent::PodLogsFinished { .. } => {}
+        }
+    }
+
+    fn on_logs_event(&mut self, event: &LogsEvent) {
+        match event {
+            LogsEvent::Loaded { pod_name, logs, .. } => {
+                self.main_window
+                    .handle_explorer_event(ExplorerEvent::PodLogsFinished {
+                        pod_name: pod_name.clone(),
+                    });
+
+                if logs.is_some() {
+                    self.set_active_window(MainWindowKind::Logs);
+                }
+            }
+
+            LogsEvent::Load { .. } | LogsEvent::Reload | LogsEvent::Reloaded { .. } => {}
+        }
     }
 }

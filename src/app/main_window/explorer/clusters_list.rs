@@ -11,7 +11,7 @@ use crate::{
         common::{
             FOCUS_COLOR, FilterableList, HelpMenuEnum, ListEvent, Spinner, traits::ListItemTrait,
         },
-        events::{AppEvent, EventSender, KeyEventResult},
+        events::{AppEvent, EventSender, ExplorerEvent, KeyEventResult},
         modal::Modal,
         notification::Notification,
     },
@@ -105,7 +105,10 @@ impl ClustersList {
         };
 
         spinner.stop();
-        event_sender.send(AppEvent::NamespacesLoaded(cluster_name, namespaces));
+        event_sender.send(ExplorerEvent::NamespacesLoaded {
+            cluster: cluster_name,
+            namespaces,
+        });
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> KeyEventResult {
@@ -124,7 +127,7 @@ impl ClustersList {
 
                 tokio::spawn(async move {
                     match kubectl::get_clusters().await {
-                        Ok(clusters) => event_sender.send(AppEvent::ClustersLoaded(clusters)),
+                        Ok(clusters) => event_sender.send(ExplorerEvent::ClustersLoaded(clusters)),
                         Err(err) => {
                             event_sender.send(AppEvent::ShowNotification(Notification::error(err)))
                         }

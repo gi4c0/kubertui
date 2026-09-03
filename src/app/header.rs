@@ -8,7 +8,9 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
-use crate::app::{MainWindowKind, common::build_block, main_window::explorer::ExplorerKind};
+use crate::app::{
+    MainWindowKind, common::build_block, events::ExplorerEvent, main_window::explorer::ExplorerKind,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct HeaderExplorerData {
@@ -46,21 +48,33 @@ impl Header {
         self.active = new_active;
     }
 
-    pub fn set_cluster(&mut self, cluster: String) {
-        self.explorer_data.cluster = Some(cluster);
+    pub fn handle_explorer_event(&mut self, event: &ExplorerEvent) {
+        match event {
+            ExplorerEvent::Show(kind) => self.set_explorer_kind(*kind),
+
+            ExplorerEvent::NamespacesLoaded { cluster, .. } => {
+                self.set_explorer_kind(ExplorerKind::Namespaces);
+                self.explorer_data.cluster = Some(cluster.clone());
+            }
+
+            ExplorerEvent::PodsLoaded { namespace, .. } => {
+                self.set_explorer_kind(ExplorerKind::Pods);
+                self.explorer_data.namespace = Some(namespace.clone());
+            }
+
+            ExplorerEvent::ClustersLoaded(_)
+            | ExplorerEvent::PodsUpdated { .. }
+            | ExplorerEvent::PodLogsFinished { .. } => {}
+        }
     }
 
-    pub fn set_namespace(&mut self, namespace: String) {
-        self.explorer_data.namespace = Some(namespace);
-    }
-
-    pub fn set_explorer_kind(&mut self, explorer_kind: ExplorerKind) {
+    fn set_explorer_kind(&mut self, explorer_kind: ExplorerKind) {
         self.explorer_kind = explorer_kind;
 
         match self.explorer_kind {
             ExplorerKind::Clusters => self.explorer_data = HeaderExplorerData::default(),
             ExplorerKind::Namespaces => self.explorer_data.namespace = None,
-            _ => {}
+            ExplorerKind::Pods => {}
         };
     }
 

@@ -22,10 +22,7 @@ use crate::{
         cache::AppCache,
         events::EventHandler,
         header::Header,
-        main_window::{
-            MainWindow,
-            explorer::{ExplorerKind, pods_pane::pods_list::utils::delete_pod},
-        },
+        main_window::{MainWindow, explorer::pods_pane::pods_list::utils::delete_pod},
         modal::{Modal, ModalAction, ModalOutcome},
     },
     error::AppResult,
@@ -160,19 +157,10 @@ impl App {
         self.header = cache.header;
     }
 
-    fn update_active_window(
-        &mut self,
-        new_active_window: MainWindowKind,
-        explorer_kind: Option<ExplorerKind>,
-    ) {
+    fn set_active_window(&mut self, new_active_window: MainWindowKind) {
         self.active_window = new_active_window;
-        self.main_window
-            .set_active_window(new_active_window, explorer_kind);
+        self.main_window.set_kind(new_active_window);
         self.header.set_active(new_active_window);
-
-        if let Some(kind) = explorer_kind {
-            self.header.set_explorer_kind(kind);
-        }
     }
 }
 

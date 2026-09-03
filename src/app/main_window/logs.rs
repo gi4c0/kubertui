@@ -5,7 +5,7 @@ use serde_json::Value;
 use crate::{
     app::{
         common::{FilterableList, ListEvent, traits::ListItemTrait},
-        events::{AppEvent, EventSender, KeyEventResult},
+        events::{AppEvent, EventSender, KeyEventResult, LogsEvent},
         main_window::{NamespacePod, logs::pod_logs::PodLogs},
         notification::Notification,
     },
@@ -73,7 +73,29 @@ impl Logs {
         KeyEventResult::Consumed
     }
 
-    pub fn reload_logs(&self) {
+    pub fn handle_event(&mut self, event: LogsEvent) {
+        match event {
+            LogsEvent::Load {
+                namespace,
+                pod_name,
+            } => Self::spawn_load_logs(namespace, pod_name, self.event_sender.clone()),
+
+            LogsEvent::Loaded {
+                namespace,
+                pod_name,
+                logs: Some(logs),
+            } => self.add_pod_logs(namespace, pod_name, logs),
+
+            // Failure already produced a notification; nothing to show here.
+            LogsEvent::Loaded { logs: None, .. } => {}
+
+            LogsEvent::Reload => self.reload_logs(),
+
+            LogsEvent::Reloaded { pod_name, logs } => self.logs_reloaded(pod_name, logs),
+        }
+    }
+
+    fn reload_logs(&self) {
         if let Some(current_pod) = self.pod_logs.as_ref() {
             let NamespacePod { namespace, pod } = current_pod.get_namespace_pod();
             let event_sender = self.event_sender.clone();
@@ -83,7 +105,7 @@ impl Logs {
                 let pod = pod;
 
                 match Self::load_prettified_logs(namespace.as_str(), pod.as_str()).await {
-                    Ok(logs) => event_sender.send(AppEvent::LogsReloaded {
+                    Ok(logs) => event_sender.send(LogsEvent::Reloaded {
                         pod_name: pod,
                         logs,
                     }),
@@ -95,7 +117,7 @@ impl Logs {
         }
     }
 
-    pub fn logs_reloaded(&mut self, pod_name: String, logs: Vec<String>) {
+    fn logs_reloaded(&mut self, pod_name: String, logs: Vec<String>) {
         let recent_pod = self
             .recent_pods
             .inner_list
@@ -111,7 +133,7 @@ impl Logs {
         }
     }
 
-    pub fn load_logs(namespace: String, pod_name: String, event_sender: EventSender) {
+    fn spawn_load_logs(namespace: String, pod_name: String, event_sender: EventSender) {
         tokio::spawn(async move {
             let logs = match Self::load_prettified_logs(&namespace, &pod_name).await {
                 Ok(logs) => Some(logs),
@@ -121,7 +143,7 @@ impl Logs {
                 }
             };
 
-            event_sender.send(AppEvent::LogsLoaded {
+            event_sender.send(LogsEvent::Loaded {
                 namespace,
                 pod_name,
                 logs,
@@ -129,7 +151,7 @@ impl Logs {
         });
     }
 
-    pub fn add_pod_logs(&mut self, namespace: String, pod_name: String, logs: Vec<String>) {
+    fn add_pod_logs(&mut self, namespace: String, pod_name: String, logs: Vec<String>) {
         let recent_pod = RecentPod {
             logs,
             title: format!("[{namespace}] {pod_name}"),

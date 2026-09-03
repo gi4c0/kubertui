@@ -2,7 +2,7 @@ use crate::{
     app::{
         cache::{NamespaceItemCache, NamespacesListCache},
         common::{FilterableList, HelpMenuEnum, ListEvent, Spinner, traits::ListItemTrait},
-        events::{AppEvent, EventSender, KeyEventResult},
+        events::{AppEvent, EventSender, ExplorerEvent, KeyEventResult},
         main_window::explorer::ExplorerKind,
         modal::Modal,
         notification::Notification,
@@ -78,7 +78,7 @@ impl NamespacesList {
             }
             KeyCode::Esc => {
                 self.event_sender
-                    .send(AppEvent::ShowExplorer(ExplorerKind::Clusters));
+                    .send(ExplorerEvent::Show(ExplorerKind::Clusters));
             }
             _ => return KeyEventResult::Ignored,
         };
@@ -110,7 +110,7 @@ impl NamespacesList {
                 }
             };
 
-            event_sender.send(AppEvent::ShowPods { pods, namespace });
+            event_sender.send(ExplorerEvent::PodsLoaded { namespace, pods });
             spinner.stop();
         });
     }

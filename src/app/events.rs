@@ -7,19 +7,13 @@ use ratatui::crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{
-        MainWindowKind, main_window::explorer::ExplorerKind, modal::Modal,
-        notification::Notification,
-    },
+    app::{main_window::explorer::ExplorerKind, modal::Modal, notification::Notification},
     error::{AppError, AppResult},
     kubectl::pods::Pod,
 };
 
 const TICK_FPS: f64 = 30.0;
 
-/// Uniform result of a component's `handle_key_event`: either the key was
-/// consumed, or the parent may fall through to more general handling.
-/// Anything else a component wants to say goes through an `AppEvent`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyEventResult {
     Consumed,
@@ -29,38 +23,62 @@ pub enum KeyEventResult {
 pub enum AppEvent {
     Crossterm(CrosstermEvent),
     Tick,
-    Focus(MainWindowKind),
     FocusNext,
     FocusPrev,
-    ShowExplorer(ExplorerKind),
     Quit,
-    NamespacesLoaded(String, Vec<String>),
-    ShowPods {
-        pods: Vec<Pod>,
-        namespace: String,
-    },
-    LoadLogs {
-        namespace: String,
-        pod_name: String,
-    },
-    LogsLoaded {
-        namespace: String,
-        pod_name: String,
-        /// `None` when loading failed; a notification is sent separately.
-        logs: Option<Vec<String>>,
-    },
+    ShowNotification(Notification),
+    OpenModal(Modal),
+    Explorer(ExplorerEvent),
+    Logs(LogsEvent),
+}
+
+pub enum ExplorerEvent {
+    Show(ExplorerKind),
     ClustersLoaded(Vec<String>),
+    NamespacesLoaded {
+        cluster: String,
+        namespaces: Vec<String>,
+    },
+    PodsLoaded {
+        namespace: String,
+        pods: Vec<Pod>,
+    },
     PodsUpdated {
         namespace: String,
         pods: Vec<Pod>,
     },
-    ReloadLogs,
-    LogsReloaded {
+    PodLogsFinished {
+        pod_name: String,
+    },
+}
+
+pub enum LogsEvent {
+    Load {
+        namespace: String,
+        pod_name: String,
+    },
+    Loaded {
+        namespace: String,
+        pod_name: String,
+        logs: Option<Vec<String>>,
+    },
+    Reload,
+    Reloaded {
         pod_name: String,
         logs: Vec<String>,
     },
-    ShowNotification(Notification),
-    OpenModal(Modal),
+}
+
+impl From<ExplorerEvent> for AppEvent {
+    fn from(value: ExplorerEvent) -> Self {
+        AppEvent::Explorer(value)
+    }
+}
+
+impl From<LogsEvent> for AppEvent {
+    fn from(value: LogsEvent) -> Self {
+        AppEvent::Logs(value)
+    }
 }
 
 pub struct EventHandler {
@@ -74,14 +92,13 @@ pub struct EventSender {
 }
 
 impl EventSender {
-    pub fn send(&self, message: AppEvent) {
-        let _ = self.sender.send(message);
+    pub fn send(&self, message: impl Into<AppEvent>) {
+        let _ = self.sender.send(message.into());
     }
 }
 
 impl EventHandler {
     pub fn new() -> Self {
-        // TODO: maybe use mpmc?
         let (sender, receiver) = mpsc::unbounded_channel();
 
         let actor = EventTask::new(sender.clone());

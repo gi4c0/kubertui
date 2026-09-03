@@ -2,7 +2,7 @@ use ratatui::widgets::Cell;
 
 use crate::{
     app::{
-        events::{AppEvent, EventSender},
+        events::{AppEvent, EventSender, ExplorerEvent},
         notification::Notification,
     },
     kubectl::{
@@ -70,7 +70,7 @@ pub fn delete_pod(namespace: String, pod_name: String, event_sender: EventSender
         }
 
         match get_pods_list(namespace.as_str()).await {
-            Ok(pods) => event_sender.send(AppEvent::PodsUpdated { namespace, pods }),
+            Ok(pods) => event_sender.send(ExplorerEvent::PodsUpdated { namespace, pods }),
             Err(err) => event_sender.send(AppEvent::ShowNotification(Notification::error(err))),
         }
     });

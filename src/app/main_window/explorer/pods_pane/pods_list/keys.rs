@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{
     common::{FilterEvent, HelpMenuEnum, Spinner},
-    events::{AppEvent, KeyEventResult},
+    events::{AppEvent, ExplorerEvent, KeyEventResult, LogsEvent},
     main_window::explorer::{
         ExplorerKind,
         pods_pane::pods_list::{
@@ -39,7 +39,7 @@ impl PodsList {
         match key.code {
             KeyCode::Esc => {
                 self.event_sender
-                    .send(AppEvent::ShowExplorer(ExplorerKind::Namespaces));
+                    .send(ExplorerEvent::Show(ExplorerKind::Namespaces));
             }
 
             KeyCode::Char('q') => {
@@ -79,7 +79,7 @@ impl PodsList {
 
                     pod_container.spinner = Some(Spinner::new());
 
-                    self.event_sender.send(AppEvent::LoadLogs {
+                    self.event_sender.send(LogsEvent::Load {
                         namespace: self.namespace.clone(),
                         pod_name: pod_container.pod.name.clone(),
                     });
