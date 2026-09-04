@@ -68,6 +68,7 @@ pub enum LogsEvent {
         logs: Vec<String>,
     },
     CloseLogItem,
+    GoToRecent,
 }
 
 impl From<ExplorerEvent> for AppEvent {

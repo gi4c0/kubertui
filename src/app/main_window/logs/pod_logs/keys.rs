@@ -165,6 +165,8 @@ impl PodLogs {
                     ));
                 }
             }
+            KeyCode::Esc => self.event_sender.send(LogsEvent::GoToRecent),
+
             _ => return KeyEventResult::Ignored,
         };
 

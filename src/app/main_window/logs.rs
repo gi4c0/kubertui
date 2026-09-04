@@ -98,6 +98,8 @@ impl Logs {
                     pod_logs.close_selected_log();
                 }
             }
+
+            LogsEvent::GoToRecent => self.pod_logs = None,
         }
     }
 
