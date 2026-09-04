@@ -1,0 +1,126 @@
+# Container-shape fixtures: multi-container pods, port variants, status aggregation.
+---
+# Two containers, default container annotated. `kubectl logs <pod>` picks "app".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: gateway }
+  template:
+    metadata:
+      labels: { app: gateway }
+      annotations:
+        kubectl.kubernetes.io/default-container: app
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          ports:
+            - containerPort: 8080
+          command: ["sh", "-c", "while true; do echo \"[app] $(date +%T) serving\"; sleep 2; done"]
+        - name: envoy-sidecar
+          image: busybox:1.36
+          ports:
+            - containerPort: 15000
+          command: ["sh", "-c", "while true; do echo \"[sidecar] $(date +%T) proxied $RANDOM bytes\"; sleep 3; done"]
+---
+# Two containers, NO default-container annotation.
+# `kubectl logs <pod>` without -c fails: "a container name must be specified".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-nodefault
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: gateway-nodefault }
+  template:
+    metadata:
+      labels: { app: gateway-nodefault }
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          ports:
+            - containerPort: 8080
+          command: ["sh", "-c", "while true; do echo \"[app] $(date +%T) serving\"; sleep 2; done"]
+        - name: sidecar
+          image: busybox:1.36
+          command: ["sh", "-c", "while true; do echo \"[sidecar] $(date +%T) tick\"; sleep 3; done"]
+---
+# Six containers -> status cell switches to "running/total" form (>5 statuses).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: many-containers
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: many-containers }
+  template:
+    metadata:
+      labels: { app: many-containers }
+      annotations:
+        kubectl.kubernetes.io/default-container: c1
+    spec:
+      containers:
+        - { name: c1, image: "busybox:1.36", command: ["sh", "-c", "while true; do echo c1 $(date +%T); sleep 5; done"] }
+        - { name: c2, image: "busybox:1.36", command: ["sh", "-c", "while true; do echo c2 $(date +%T); sleep 5; done"] }
+        - { name: c3, image: "busybox:1.36", command: ["sh", "-c", "while true; do echo c3 $(date +%T); sleep 5; done"] }
+        - { name: c4, image: "busybox:1.36", command: ["sh", "-c", "while true; do echo c4 $(date +%T); sleep 5; done"] }
+        - { name: c5, image: "busybox:1.36", command: ["sh", "-c", "while true; do echo c5 $(date +%T); sleep 5; done"] }
+        # c6 crash-loops so the count reads 5/6.
+        - { name: c6, image: "busybox:1.36", command: ["sh", "-c", "echo c6 starting; sleep 20; echo c6 dying >&2; exit 1"] }
+---
+# Container with no ports -> app sees port 0 in the port-forward popup.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: no-ports
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: no-ports }
+  template:
+    metadata:
+      labels: { app: no-ports }
+    spec:
+      containers:
+        - name: worker
+          image: busybox:1.36
+          command: ["sh", "-c", "while true; do echo \"processed job $RANDOM\"; sleep 4; done"]
+---
+# Three named ports on one container (the "there might be multiple ports" TODO).
+# Port 8080 actually listens (busybox httpd) so port-forward + curl works.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multi-port
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: multi-port }
+  template:
+    metadata:
+      labels: { app: multi-port }
+    spec:
+      containers:
+        - name: web
+          image: busybox:1.36
+          ports:
+            - { name: http,    containerPort: 8080 }
+            - { name: metrics, containerPort: 9090 }
+            - { name: admin,   containerPort: 8443 }
+          command: ["sh", "-c"]
+          args:
+            - |
+              mkdir -p /www && echo "hello from $HOSTNAME" > /www/index.html
+              httpd -f -v -p 8080 -h /www

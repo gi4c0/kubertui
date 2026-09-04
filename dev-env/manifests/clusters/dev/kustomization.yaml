@@ -1,0 +1,9 @@
+# Everything, including broken pods.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../components/apps
+  - ../../components/chaos
+  - ../../components/databases
+  - ../../components/payments
+  - ../../components/monitoring

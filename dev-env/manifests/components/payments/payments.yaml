@@ -1,0 +1,60 @@
+# A "team" namespace with an app + its own postgres. Same DB engine in two namespaces.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+  namespace: payments
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: payments-api }
+  template:
+    metadata:
+      labels: { app: payments-api }
+    spec:
+      containers:
+        - name: payments-api
+          image: busybox:1.36
+          ports:
+            - containerPort: 3000
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                case $((i % 9)) in
+                  0) printf '{"level":"error","ts":"%s","msg":"provider callback failed","provider":"adyen","httpCode":502,"txId":"tx-%d"}\n' "$(date -u +%FT%TZ)" $i ;;
+                  4) printf '{"level":"warn","ts":"%s","msg":"deposit retry","attempt":2,"txId":"tx-%d"}\n' "$(date -u +%FT%TZ)" $i ;;
+                  *) printf '{"level":"info","ts":"%s","msg":"deposit ok","amount":%d.%02d,"currency":"EUR","txId":"tx-%d","pod":"%s"}\n' "$(date -u +%FT%TZ)" $((RANDOM % 900 + 10)) $((RANDOM % 100)) $i "$HOSTNAME" ;;
+                esac
+                sleep 1.5
+              done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-db
+  namespace: payments
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: payments-db }
+  template:
+    metadata:
+      labels: { app: payments-db }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - { name: POSTGRES_USER,     value: payments }
+            - { name: POSTGRES_PASSWORD, value: secret }
+            - { name: POSTGRES_DB,       value: payments }

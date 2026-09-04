@@ -1,0 +1,5 @@
+# Shared node layout for every local cluster. Cluster name comes from `kind create cluster --name`.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane

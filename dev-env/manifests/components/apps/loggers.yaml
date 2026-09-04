@@ -1,0 +1,162 @@
+# Log producers. Each one exercises a different shape of log output.
+---
+# JSON lines, 2 lines/sec, 2 replicas -> same app across several pods.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api
+  namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: orders-api }
+  template:
+    metadata:
+      labels: { app: orders-api }
+    spec:
+      containers:
+        - name: orders-api
+          image: busybox:1.36
+          ports:
+            - containerPort: 8080
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                case $((i % 7)) in
+                  0) lvl=error; st=500 ;;
+                  3) lvl=warn;  st=429 ;;
+                  5) lvl=debug; st=200 ;;
+                  *) lvl=info;  st=200 ;;
+                esac
+                printf '{"ts":"%s","level":"%s","msg":"request handled","traceId":"%08x%08x","seq":%d,"method":"GET","path":"/api/v1/orders/%d","status":%d,"durationMs":%d,"pod":"%s"}\n' \
+                  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$lvl" $RANDOM$RANDOM $RANDOM$RANDOM "$i" $((i % 50)) "$st" $((RANDOM % 400)) "$HOSTNAME"
+                sleep 0.5
+              done
+---
+# Plain text with levels, multi-line Java stack traces, very long lines.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: inventory-service }
+  template:
+    metadata:
+      labels: { app: inventory-service }
+    spec:
+      containers:
+        - name: inventory-service
+          image: busybox:1.36
+          ports:
+            - containerPort: 8080
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                ts=$(date '+%Y-%m-%d %H:%M:%S')
+                case $((i % 20)) in
+                  0)
+                    echo "$ts ERROR [OrderService] Failed to reserve stock for order-$i"
+                    echo "java.lang.IllegalStateException: inventory service unavailable"
+                    echo "    at com.shop.order.OrderService.reserve(OrderService.java:142)"
+                    echo "    at com.shop.order.OrderService.place(OrderService.java:88)"
+                    echo "    at com.shop.api.OrderController.create(OrderController.java:41)"
+                    echo "Caused by: java.net.ConnectException: Connection refused"
+                    echo "    at java.base/sun.nio.ch.Net.connect0(Native Method)"
+                    echo "    ... 12 more"
+                    ;;
+                  13)
+                    printf '%s INFO  [Batch] payload=' "$ts"
+                    j=0; while [ $j -lt 60 ]; do printf 'sku-%04d,qty=%d;' $j $((RANDOM % 9)); j=$((j+1)); done
+                    echo
+                    ;;
+                  5|15) echo "$ts WARN  [Cache] miss ratio above threshold: 0.$((RANDOM % 90 + 10))" ;;
+                  *)    echo "$ts INFO  [OrderService] order-$i placed by user-$((RANDOM % 1000)) total=$((RANDOM % 500)).$((RANDOM % 100)) EUR" ;;
+                esac
+                sleep 1
+              done
+---
+# High volume: ~50 lines/sec. Scroll / follow / memory testing.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firehose
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: firehose }
+  template:
+    metadata:
+      labels: { app: firehose }
+    spec:
+      containers:
+        - name: firehose
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                echo "$(date -u +%H:%M:%S) line=$i worker=$((i % 8)) value=$RANDOM"
+                sleep 0.02
+              done
+---
+# ANSI colour codes in output (terminal rendering test).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: color-logger
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: color-logger }
+  template:
+    metadata:
+      labels: { app: color-logger }
+    spec:
+      containers:
+        - name: color-logger
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                case $((i % 4)) in
+                  0) printf '\033[31mERROR\033[0m \033[90m%s\033[0m something \033[1mbold\033[0m failed #%d\n' "$(date +%T)" $i ;;
+                  1) printf '\033[33mWARN \033[0m \033[90m%s\033[0m slow query %dms\n' "$(date +%T)" $((RANDOM % 900)) ;;
+                  *) printf '\033[32mINFO \033[0m \033[90m%s\033[0m tick %d\n' "$(date +%T)" $i ;;
+                esac
+                sleep 1
+              done
+---
+# Produces no logs at all. Empty log view test.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: silent
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: silent }
+  template:
+    metadata:
+      labels: { app: silent }
+    spec:
+      containers:
+        - name: silent
+          image: busybox:1.36
+          command: ["sleep", "infinity"]

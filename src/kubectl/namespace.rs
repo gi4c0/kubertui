@@ -1,7 +1,4 @@
-use std::time::Duration;
-
 use serde::Deserialize;
-use tokio::time::sleep;
 
 use crate::{
     error::{AppError, AppResult},
@@ -24,7 +21,6 @@ struct Metadata {
 }
 
 pub async fn get_namespaces(cluster: &str) -> Result<Vec<String>, AppError> {
-    sleep(Duration::from_secs(5)).await;
     switch_context(cluster).await?;
 
     let parsed: Response = run_kubectl_command_and_parse(

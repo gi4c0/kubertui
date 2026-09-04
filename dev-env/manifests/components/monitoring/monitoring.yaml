@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+# DaemonSet -> one pod per node, name suffix differs from Deployment pods.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: metrics-agent
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels: { app: metrics-agent }
+  template:
+    metadata:
+      labels: { app: metrics-agent }
+    spec:
+      containers:
+        - name: metrics-agent
+          image: busybox:1.36
+          ports:
+            - containerPort: 9100
+          command: ["sh", "-c"]
+          args:
+            - |
+              while true; do
+                echo "$(date -u +%FT%TZ) scraped targets=12 up=11 down=1 duration=$((RANDOM % 300))ms"
+                echo "node_cpu_seconds_total{mode=\"idle\"} $RANDOM"
+                sleep 5
+              done

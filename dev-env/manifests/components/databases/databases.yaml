@@ -1,0 +1,150 @@
+# Real databases for port-forward testing. Credentials are in the README.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: databases
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: databases
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - { name: POSTGRES_USER,     value: app }
+            - { name: POSTGRES_PASSWORD, value: secret }
+            - { name: POSTGRES_DB,       value: shop }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: databases
+spec:
+  selector: { app: postgres }
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: databases
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mysql }
+  template:
+    metadata:
+      labels: { app: mysql }
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          ports:
+            - containerPort: 3306
+          args: ["--performance-schema=OFF", "--innodb-buffer-pool-size=64M"]
+          env:
+            - { name: MYSQL_ROOT_PASSWORD, value: secret }
+            - { name: MYSQL_DATABASE,      value: shop }
+            - { name: MYSQL_USER,          value: app }
+            - { name: MYSQL_PASSWORD,      value: secret }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/mysql }
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: databases
+spec:
+  selector: { app: mysql }
+  ports:
+    - port: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: databases
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: redis }
+  template:
+    metadata:
+      labels: { app: redis }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          args: ["--requirepass", "secret"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: databases
+spec:
+  selector: { app: redis }
+  ports:
+    - port: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  namespace: databases
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mongo }
+  template:
+    metadata:
+      labels: { app: mongo }
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports:
+            - containerPort: 27017
+          env:
+            - { name: MONGO_INITDB_ROOT_USERNAME, value: app }
+            - { name: MONGO_INITDB_ROOT_PASSWORD, value: secret }
+          volumeMounts:
+            - { name: data, mountPath: /data/db }
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: databases
+spec:
+  selector: { app: mongo }
+  ports:
+    - port: 27017

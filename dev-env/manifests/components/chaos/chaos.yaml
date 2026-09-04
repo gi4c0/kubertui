@@ -1,0 +1,179 @@
+# Broken / unusual pod states. Each maps to a PodStatus variant or status.reason the TUI renders.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chaos
+---
+# Terminated(Error) <-> Waiting(CrashLoopBackOff), restartCount climbing.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crashloop
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: crashloop }
+  template:
+    metadata:
+      labels: { app: crashloop }
+    spec:
+      containers:
+        - name: crashloop
+          image: busybox:1.36
+          command: ["sh", "-c", "echo starting up; sleep 5; echo 'FATAL: config key DATABASE_URL missing' >&2; exit 1"]
+---
+# Waiting(ErrImagePull / ImagePullBackOff).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-pull-fail
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: image-pull-fail }
+  template:
+    metadata:
+      labels: { app: image-pull-fail }
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/does-not-exist/nope:1.0.0
+---
+# Pending forever: containerStatuses is null, status.reason absent.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pending-unschedulable
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: pending-unschedulable }
+  template:
+    metadata:
+      labels: { app: pending-unschedulable }
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: s390x
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sleep", "infinity"]
+---
+# Main container Waiting(PodInitializing) because the init container never finishes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: init-stuck
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: init-stuck }
+  template:
+    metadata:
+      labels: { app: init-stuck }
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ["sh", "-c", "while true; do echo waiting for db...; sleep 10; done"]
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sleep", "infinity"]
+---
+# Running, but exits 0 every 60s -> restartCount grows while status stays green most of the time.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaky
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: flaky }
+  template:
+    metadata:
+      labels: { app: flaky }
+    spec:
+      containers:
+        - name: flaky
+          image: busybox:1.36
+          command: ["sh", "-c", "for i in $(seq 1 12); do echo alive $i; sleep 5; done; echo 'graceful exit'; exit 0"]
+---
+# Terminated(OOMKilled). tail -c must buffer 100MB with a 20Mi limit.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oom
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: oom }
+  template:
+    metadata:
+      labels: { app: oom }
+    spec:
+      containers:
+        - name: oom
+          image: busybox:1.36
+          resources:
+            limits:
+              memory: 20Mi
+          command: ["sh", "-c", "echo allocating; sleep 15; dd if=/dev/zero bs=1M count=100 2>/dev/null | tail -c 104857600 > /dev/null; echo survived"]
+---
+# Terminated(Completed), exit 0.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: completed-job
+  namespace: chaos
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: job
+          image: busybox:1.36
+          command: ["sh", "-c", "echo migrating schema; sleep 5; echo applied 12 migrations; echo done"]
+---
+# Terminated(Error), exit 1, no retries.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: failed-job
+  namespace: chaos
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: job
+          image: busybox:1.36
+          command: ["sh", "-c", "echo starting backup; sleep 3; echo 'ERROR: bucket not found' >&2; exit 1"]
+---
+# Accumulates Completed pods over time (keeps last 3), realistic clutter in the pod list.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hourly-report
+  namespace: chaos
+spec:
+  schedule: "*/2 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: report
+              image: busybox:1.36
+              command: ["sh", "-c", "echo generating report; sleep 2; echo rows=$RANDOM; echo ok"]
