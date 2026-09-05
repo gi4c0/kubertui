@@ -7,7 +7,11 @@ use ratatui::crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
 use crate::{
-    app::{main_window::explorer::ExplorerKind, modal::Modal, notification::Notification},
+    app::{
+        main_window::explorer::{ExplorerKind, pods_pane::pods_list::pod_menu_popup::PodMenuItem},
+        modal::Modal,
+        notification::Notification,
+    },
     error::{AppError, AppResult},
     kubectl::pods::Pod,
 };
@@ -32,7 +36,13 @@ pub enum AppEvent {
     Logs(LogsEvent),
 }
 
+pub enum PodMenuEvent {
+    CloseMenuPopup,
+    SelectedItem(PodMenuItem),
+}
+
 pub enum ExplorerEvent {
+    PodMenuEvent(PodMenuEvent),
     Show(ExplorerKind),
     ClustersLoaded(Vec<String>),
     NamespacesLoaded {
@@ -69,6 +79,12 @@ pub enum LogsEvent {
     },
     CloseLogItem,
     GoToRecent,
+}
+
+impl From<PodMenuEvent> for AppEvent {
+    fn from(value: PodMenuEvent) -> Self {
+        AppEvent::Explorer(ExplorerEvent::PodMenuEvent(value))
+    }
 }
 
 impl From<ExplorerEvent> for AppEvent {

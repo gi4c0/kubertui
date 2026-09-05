@@ -62,9 +62,7 @@ impl Header {
                 self.explorer_data.namespace = Some(namespace.clone());
             }
 
-            ExplorerEvent::ClustersLoaded(_)
-            | ExplorerEvent::PodsUpdated { .. }
-            | ExplorerEvent::PodLogsFinished { .. } => {}
+            _ => {}
         }
     }
 

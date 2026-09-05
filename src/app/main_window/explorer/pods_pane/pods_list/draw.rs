@@ -64,5 +64,9 @@ impl PodsList {
         } else {
             frame.render_stateful_widget(table, area, &mut self.state);
         }
+
+        if let Some(pod_menu_popup) = self.pod_menu_popup.as_mut() {
+            pod_menu_popup.draw(area, frame);
+        }
     }
 }

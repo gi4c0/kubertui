@@ -5,9 +5,7 @@ use crate::app::{
     events::{AppEvent, ExplorerEvent, KeyEventResult, LogsEvent},
     main_window::explorer::{
         ExplorerKind,
-        pods_pane::pods_list::{
-            PodsList, delete_pod_alert::DeletePodAlert, port_forward_popup::PortForwardPopup,
-        },
+        pods_pane::pods_list::{PodsList, pod_menu_popup::PodMenuPopup},
     },
     modal::Modal,
 };
@@ -28,6 +26,10 @@ impl PodsList {
             };
         }
 
+        if let Some(pod_menu_popup) = self.pod_menu_popup.as_mut() {
+            return pod_menu_popup.handle_key(key);
+        }
+
         if let Some(key_handle_result) = self.movement_key_handler(key) {
             return key_handle_result;
         }
@@ -45,29 +47,9 @@ impl PodsList {
             KeyCode::Char('q') => {
                 self.event_sender.send(AppEvent::Quit);
             }
-            KeyCode::Char('d') => {
-                if let Some(pod_name) = self.get_selected_pod_name() {
-                    self.event_sender.send(AppEvent::OpenModal(Modal::DeletePod(
-                        DeletePodAlert::new(self.namespace.clone(), pod_name.to_owned()),
-                    )));
-                }
-            }
+            KeyCode::Char('d') => self.delete_pod(),
             KeyCode::Char('/') => self.filter.activate(),
-
-            KeyCode::Char('p') => {
-                if let Some(index) = self.selected_index() {
-                    let pod = &self.original_list[index].pod;
-
-                    self.event_sender
-                        .send(AppEvent::OpenModal(Modal::PortForward(
-                            PortForwardPopup::new(
-                                self.namespace.clone(),
-                                pod.name.clone(),
-                                pod.containers.clone(),
-                            ),
-                        )));
-                }
-            }
+            KeyCode::Char('p') => self.port_forward(),
 
             KeyCode::Char('?') => self
                 .event_sender
@@ -85,6 +67,11 @@ impl PodsList {
                     });
                 }
             }
+
+            KeyCode::Enter => {
+                self.pod_menu_popup = Some(PodMenuPopup::new(self.event_sender.clone()));
+            }
+
             _ => return KeyEventResult::Ignored,
         };
 

@@ -15,7 +15,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
 };
 use serde::{Deserialize, Serialize};
-use strum_macros::{AsRefStr, VariantArray};
+use strum::{AsRefStr, VariantArray};
 
 use crate::{
     app::{

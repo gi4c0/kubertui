@@ -61,6 +61,8 @@ impl Explorer {
                 self.namespaces.set_namespaces(namespaces);
             }
 
+            ExplorerEvent::PodMenuEvent(pod_menu_event) => self.pods.handle_event(pod_menu_event),
+
             ExplorerEvent::PodsLoaded { namespace, pods } => {
                 self.kind = ExplorerKind::Pods;
                 self.pods.show_pods(namespace, pods);

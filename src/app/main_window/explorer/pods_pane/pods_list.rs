@@ -1,4 +1,5 @@
 pub mod delete_pod_alert;
+pub mod pod_menu_popup;
 pub mod port_forward_popup;
 pub mod utils;
 
@@ -11,7 +12,13 @@ use crate::{
     app::{
         cache::{PodsListCache, StateCache},
         common::{Filter, Spinner},
-        events::EventSender,
+        events::{AppEvent, EventSender, PodMenuEvent},
+        main_window::explorer::pods_pane::pods_list::{
+            delete_pod_alert::DeletePodAlert,
+            pod_menu_popup::{PodMenuItem, PodMenuPopup},
+            port_forward_popup::PortForwardPopup,
+        },
+        modal::Modal,
     },
     kubectl::pods::Pod,
 };
@@ -27,6 +34,7 @@ pub struct PodsList {
     longest_name: u16,
     title: String,
     namespace: String,
+    pod_menu_popup: Option<PodMenuPopup>,
 }
 
 impl From<PodsList> for PodsListCache {
@@ -62,6 +70,7 @@ impl PodsList {
             title: value.title,
             namespace: value.namespace,
             state,
+            pod_menu_popup: None,
         }
     }
 
@@ -78,10 +87,38 @@ impl PodsList {
             event_sender,
             state,
             filter: Filter::default(),
+            pod_menu_popup: None,
         };
 
         list.update_pods(pods);
         list
+    }
+
+    pub fn handle_event(&mut self, event: PodMenuEvent) {
+        self.pod_menu_popup = None;
+
+        match event {
+            PodMenuEvent::CloseMenuPopup => {} // already removed popup above
+            PodMenuEvent::SelectedItem(PodMenuItem::DeletePod) => self.delete_pod(),
+            PodMenuEvent::SelectedItem(PodMenuItem::PortForward) => self.port_forward(),
+            PodMenuEvent::SelectedItem(PodMenuItem::EnvVars) => todo!(),
+            PodMenuEvent::SelectedItem(PodMenuItem::Info) => todo!(),
+        }
+    }
+
+    fn port_forward(&self) {
+        if let Some(index) = self.selected_index() {
+            let pod = &self.original_list[index].pod;
+
+            self.event_sender
+                .send(AppEvent::OpenModal(Modal::PortForward(
+                    PortForwardPopup::new(
+                        self.namespace.clone(),
+                        pod.name.clone(),
+                        pod.containers.clone(),
+                    ),
+                )));
+        }
     }
 
     fn update_pods(&mut self, pods: Vec<Pod>) {
@@ -182,6 +219,16 @@ impl PodsList {
         };
 
         self.state.select(Some(i));
+    }
+
+    fn delete_pod(&self) {
+        if let Some(pod_name) = self.get_selected_pod_name() {
+            self.event_sender
+                .send(AppEvent::OpenModal(Modal::DeletePod(DeletePodAlert::new(
+                    self.namespace.clone(),
+                    pod_name.to_owned(),
+                ))));
+        }
     }
 }
 

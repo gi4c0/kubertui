@@ -6,7 +6,7 @@ use strum::{AsRefStr, VariantArray};
 use crate::{
     app::{
         cache::PodsCache,
-        events::{EventSender, KeyEventResult},
+        events::{EventSender, KeyEventResult, PodMenuEvent},
         main_window::explorer::pods_pane::pods_list::PodsList,
     },
     kubectl::pods::Pod,
@@ -74,6 +74,12 @@ impl PodsPane {
     pub fn pods_updated(&mut self, namespace: &str, pods: Vec<Pod>) {
         if let Some(pods_list) = self.pods_list.as_mut() {
             pods_list.pods_updated(namespace, pods);
+        }
+    }
+
+    pub fn handle_event(&mut self, event: PodMenuEvent) {
+        if let Some(pod_list) = self.pods_list.as_mut() {
+            pod_list.handle_event(event);
         }
     }
 

@@ -1,4 +1,5 @@
 use crate::app::common::handle_general_keys;
+use crate::app::events::PodMenuEvent;
 use crate::app::main_window::explorer::Explorer;
 use crate::app::main_window::port_forwards::PortForwardsList;
 use crate::app::{MainWindowKind, main_window::logs::Logs};

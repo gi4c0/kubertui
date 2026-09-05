@@ -56,9 +56,7 @@ impl App {
             | ExplorerEvent::NamespacesLoaded { .. }
             | ExplorerEvent::PodsLoaded { .. } => self.set_active_window(MainWindowKind::Explorer),
 
-            ExplorerEvent::ClustersLoaded(_)
-            | ExplorerEvent::PodsUpdated { .. }
-            | ExplorerEvent::PodLogsFinished { .. } => {}
+            _ => {}
         }
     }
 
