@@ -1,8 +1,6 @@
 use ratatui::style::Style;
 
 pub trait ListItemTrait {
-    fn as_ref(&self) -> &str;
-
     fn get_style(&self) -> Option<Style> {
         None
     }
@@ -13,10 +11,6 @@ pub trait ListItemTrait {
 }
 
 impl ListItemTrait for String {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-
     fn get_style(&self) -> Option<Style> {
         None
     }

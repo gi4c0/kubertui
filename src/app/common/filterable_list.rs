@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
@@ -27,7 +29,7 @@ pub struct FilterableList<T> {
 
 impl<Item> FilterableList<Item>
 where
-    Item: Clone + ListItemTrait,
+    Item: Clone + ListItemTrait + Display,
 {
     pub fn push(&mut self, new_item: Item) {
         self.inner_list.insert(0, new_item);
@@ -98,7 +100,7 @@ where
             .iter()
             .map(|index| {
                 let item = &self.inner_list[*index];
-                let mut span = Span::from(item.as_ref());
+                let mut span = Span::from(item.to_string());
 
                 if let Some(spinner_text) = item.spinner() {
                     let span_content = span.content;
@@ -209,7 +211,7 @@ where
     fn update_filtered_list(&mut self) {
         self.filtered_list = self
             .filter
-            .apply(self.inner_list.iter().map(|item| item.as_ref()));
+            .apply(self.inner_list.iter().map(|item| item.to_string()));
 
         self.state.select(Some(0));
         self.scrollbar_state = ScrollbarState::new(self.filtered_list.len());

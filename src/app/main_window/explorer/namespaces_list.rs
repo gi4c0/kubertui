@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     app::{
         cache::{NamespaceItemCache, NamespacesListCache},
@@ -131,11 +133,13 @@ impl From<NamespaceItemCache> for NamespaceItem {
     }
 }
 
-impl ListItemTrait for NamespaceItem {
-    fn as_ref(&self) -> &str {
-        self.value.as_str()
+impl Display for NamespaceItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value.clone())
     }
+}
 
+impl ListItemTrait for NamespaceItem {
     fn spinner(&self) -> Option<String> {
         self.spinner
             .as_ref()

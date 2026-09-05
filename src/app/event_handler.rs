@@ -63,19 +63,15 @@ impl App {
     }
 
     fn on_logs_event(&mut self, event: &LogsEvent) {
-        match event {
-            LogsEvent::Loaded { pod_name, logs, .. } => {
-                self.main_window
-                    .handle_explorer_event(ExplorerEvent::PodLogsFinished {
-                        pod_name: pod_name.clone(),
-                    });
+        if let LogsEvent::Loaded { pod_name, logs, .. } = event {
+            self.main_window
+                .handle_explorer_event(ExplorerEvent::PodLogsFinished {
+                    pod_name: pod_name.clone(),
+                });
 
-                if logs.is_some() {
-                    self.set_active_window(MainWindowKind::Logs);
-                }
+            if logs.is_some() {
+                self.set_active_window(MainWindowKind::Logs);
             }
-
-            _ => {}
         }
     }
 }

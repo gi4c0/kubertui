@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use ratatui::{
     Frame,
     crossterm::event::{KeyCode, KeyEvent},
@@ -165,6 +167,12 @@ impl From<Cluster> for ClusterCache {
     }
 }
 
+impl Display for Cluster {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name.clone())
+    }
+}
+
 impl ListItemTrait for Cluster {
     fn get_style(&self) -> Option<Style> {
         if self.is_selected {
@@ -172,10 +180,6 @@ impl ListItemTrait for Cluster {
         }
 
         None
-    }
-
-    fn as_ref(&self) -> &str {
-        &self.name
     }
 
     fn spinner(&self) -> Option<String> {

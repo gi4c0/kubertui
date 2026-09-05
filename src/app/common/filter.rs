@@ -10,12 +10,8 @@ pub struct Filter {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum FilterEvent {
-    /// Text changed: caller must recompute filtered indices.
     Changed,
-    /// Left filter mode. `changed` is true when the text was cleared (Esc).
-    Closed {
-        changed: bool,
-    },
+    Closed { changed: bool },
     Ignored,
 }
 
@@ -72,13 +68,12 @@ impl Filter {
         }
     }
 
-    /// Indices of `names` matching the filter. Empty/whitespace filter matches all.
-    pub fn apply<'a>(&self, names: impl Iterator<Item = &'a str>) -> Vec<usize> {
-        let needle = self.text.trim();
+    pub fn apply(&self, names: impl Iterator<Item = String>) -> Vec<usize> {
+        let filter_text = self.text.trim();
 
         names
             .enumerate()
-            .filter(|(_, name)| needle.is_empty() || name.contains(needle))
+            .filter(|(_, name)| filter_text.is_empty() || name.contains(filter_text))
             .map(|(index, _)| index)
             .collect()
     }

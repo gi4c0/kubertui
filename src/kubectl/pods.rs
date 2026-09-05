@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -20,9 +22,11 @@ pub struct PodContainer {
     pub port: u16,
 }
 
-impl ListItemTrait for PodContainer {
-    fn as_ref(&self) -> &str {
-        self.name.as_str()
+impl ListItemTrait for PodContainer {}
+
+impl Display for PodContainer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name.clone())
     }
 }
 

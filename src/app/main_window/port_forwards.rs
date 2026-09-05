@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     process::Command,
     sync::{Arc, Mutex},
     time::Duration,
@@ -47,6 +48,12 @@ impl PartialEq for PortForward {
     }
 }
 
+impl Display for PortForward {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.item_str.clone())
+    }
+}
+
 impl ListItemTrait for PortForward {
     fn get_style(&self) -> Option<Style> {
         let pid = match self.pid.try_lock() {
@@ -55,10 +62,6 @@ impl ListItemTrait for PortForward {
         };
 
         pid.map(|_| Color::LightGreen.into())
-    }
-
-    fn as_ref(&self) -> &str {
-        &self.item_str
     }
 
     fn spinner(&self) -> Option<String> {

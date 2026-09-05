@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crossterm::event::KeyEvent;
 use ratatui::{Frame, layout::Rect};
 use serde_json::Value;
@@ -31,11 +33,13 @@ pub struct Logs {
     pod_logs: Option<PodLogs>,
 }
 
-impl ListItemTrait for RecentPod {
-    fn as_ref(&self) -> &str {
-        &self.title
+impl Display for RecentPod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.title.clone())
     }
 }
+
+impl ListItemTrait for RecentPod {}
 
 impl Logs {
     pub fn new(event_sender: EventSender) -> Self {

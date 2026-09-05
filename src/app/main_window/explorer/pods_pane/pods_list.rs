@@ -16,6 +16,7 @@ use crate::{
     kubectl::pods::Pod,
 };
 
+// TODO: display spinner on port forward and redirect to port forward list on success
 #[derive(Debug, Clone)]
 pub struct PodsList {
     original_list: Vec<PodWithSpinner>,
@@ -137,9 +138,11 @@ impl PodsList {
     }
 
     fn update_filtered_list(&mut self) {
-        self.filtered_list = self
-            .filter
-            .apply(self.original_list.iter().map(|item| item.pod.name.as_str()));
+        self.filtered_list = self.filter.apply(
+            self.original_list
+                .iter()
+                .map(|item| item.pod.name.to_string()),
+        );
         self.state.select(Some(0));
     }
 
